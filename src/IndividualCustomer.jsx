@@ -138,7 +138,7 @@ export default function IndividualCustomer() {
           <Mail className="mx-auto mb-3" size={28} style={{ color: T.sealDeep }} />
           <div className="text-sm font-medium mb-1" style={{ color: T.ink }}>تحقق من بريدك</div>
           <div className="text-xs" style={{ color: T.sub }}>
-            بعتنالك رابط دخول على {email}. دوس عليه من نفس الجهاز عشان تدخل تلقائياً.
+            تم إرسال رابط الدخول إلى {email}. يرجى الضغط عليه من نفس الجهاز لإتمام تسجيل الدخول.
           </div>
         </div>
       </Shell>
@@ -148,8 +148,8 @@ export default function IndividualCustomer() {
   return (
     <Shell>
       <div className="text-xs mb-4" style={{ color: T.sub }}>
-        دخول سريع بدون كلمة مرور — بس أدخل بريدك ونبعتلك رابط تسجيل الدخول.
-        <span className="block mt-1" style={{ color: T.sealDeep }}>(نسخة مؤقتة بالبريد لين نفعّل الدخول برقم الجوال)</span>
+        تسجيل دخول سريع بدون كلمة مرور — يكفي إدخال بريدك الإلكتروني وسنرسل لك رابط تسجيل الدخول.
+        <span className="block mt-1" style={{ color: T.sealDeep }}>(نسخة مؤقتة عبر البريد الإلكتروني إلى حين تفعيل الدخول برقم الجوال)</span>
       </div>
       <form onSubmit={sendLink}>
         <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>البريد الإلكتروني</label>
