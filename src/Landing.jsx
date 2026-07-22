@@ -90,7 +90,7 @@ function RoleModal({ onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-semibold" style={{ color: T.ink }}>وش دورك؟</span>
+          <span className="text-sm font-semibold" style={{ color: T.ink }}>اختر دورك</span>
           <button onClick={onClose}><X size={16} style={{ color: T.sub }} /></button>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -177,7 +177,7 @@ export default function Landing() {
           كل تجّار الجملة، تحت سقف واحد
         </h1>
         <p className="text-sm md:text-base max-w-xl mx-auto mb-8" style={{ color: T.sub }}>
-          تصفّح، اطلب، واستلم من أي تاجر جملة معتمد — بفاتورة واحدة وتجربة شراء موحّدة، بغض النظر عن عدد التجّار اللي تطلب منهم.
+          تصفّح، اطلب، واستلم من أي تاجر جملة معتمد — بفاتورة واحدة وتجربة شراء موحّدة، بغض النظر عن عدد التجّار الذين تطلب منهم.
         </p>
         <button onClick={() => setShowRoles(true)} className="inline-flex items-center gap-1 text-sm font-medium px-5 py-2.5 rounded-lg" style={{ background: T.ink, color: "#fff", border: "none", cursor: "pointer" }}>
           ابدأ من هنا <ArrowLeft size={14} />
