@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { Navigate } from "react-router-dom";
+import { supabase } from "./supabaseClient.js";
+import { useIdleLogout } from "./useIdleLogout.js";
 import {
   LayoutGrid,
   ShieldCheck,
@@ -18,15 +20,6 @@ import {
   LogOut,
   Loader2,
 } from "lucide-react";
-
-/* ---------------------------------------------------------
-   Supabase connection
-   The anon/publishable key is safe to expose client-side —
-   it only grants what RLS policies allow.
----------------------------------------------------------- */
-const SUPABASE_URL = "https://euiuybhgdzcrdrfjjrut.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_YcAYaChM0-SEGkLTFmElbQ_PsS1m3YM";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const T = {
   ink: "#14213B",
@@ -90,82 +83,6 @@ function Stamp({ label, tone }) {
     >
       {tone === "good" ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
       <span className="text-[11px] font-semibold">{label}</span>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------
-   Login screen — required because every table's RLS checks
-   auth.uid(), so nothing loads until a real session exists.
----------------------------------------------------------- */
-function Login({ onSignedIn }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [err, setErr] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr("");
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setErr("بيانات الدخول غير صحيحة أو الحساب غير مفعّل.");
-      return;
-    }
-    onSignedIn(data.session);
-  };
-
-  return (
-    <div
-      dir="rtl"
-      className="w-full h-screen flex items-center justify-center"
-      style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper }}
-    >
-      <form onSubmit={submit} className="w-full max-w-sm rounded-xl p-7" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
-            <Package size={18} color={T.ink} strokeWidth={2.5} />
-          </div>
-          <div>
-            <div className="font-semibold text-[15px]" style={{ color: T.ink }}>منصة الجملة</div>
-            <div className="text-[11px]" style={{ color: T.sub }}>دخول مدير الموقع</div>
-          </div>
-        </div>
-
-        <label className="text-xs font-medium" style={{ color: T.sub }}>البريد الإلكتروني</label>
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full text-sm rounded-lg py-2 px-3 mt-1 mb-4 outline-none"
-          style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
-        />
-
-        <label className="text-xs font-medium" style={{ color: T.sub }}>كلمة المرور</label>
-        <input
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full text-sm rounded-lg py-2 px-3 mt-1 mb-2 outline-none"
-          style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
-        />
-
-        {err && <div className="text-xs mb-3" style={{ color: T.bad }}>{err}</div>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full mt-3 text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2"
-          style={{ background: T.ink, color: "#fff" }}
-        >
-          {loading && <Loader2 size={14} className="animate-spin" />}
-          دخول
-        </button>
-      </form>
     </div>
   );
 }
@@ -398,6 +315,7 @@ function Audit({ entries, loading }) {
 
 export default function ManagerDashboard() {
   useFonts();
+  useIdleLogout(30); // تسجيل خروج تلقائي بعد 30 دقيقة خمول
   const [session, setSession] = useState(null);
   const [checking, setChecking] = useState(true);
   const [active, setActive] = useState("overview");
@@ -467,7 +385,7 @@ export default function ManagerDashboard() {
   }
 
   if (!session) {
-    return <Login onSignedIn={setSession} />;
+    return <Navigate to="/login" replace />;
   }
 
   const pendingCount = requests.filter((r) => r.stage !== "approved" && r.stage !== "rejected").length;
