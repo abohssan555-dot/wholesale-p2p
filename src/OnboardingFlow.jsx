@@ -102,24 +102,19 @@ const VEHICLE_LABELS = {
 };
 
 const STORE_CATEGORIES = [
-  { id: "beverages", label: "مشروبات وعصائر" },
-  { id: "dairy", label: "ألبان وأجبان" },
-  { id: "grains_rice", label: "أرز وحبوب" },
-  { id: "canned_goods", label: "معلبات" },
-  { id: "cleaning", label: "منظفات ومستلزمات منزلية" },
-  { id: "snacks", label: "وجبات خفيفة وحلويات" },
-  { id: "fresh_produce", label: "خضار وفواكه" },
-  { id: "bakery", label: "مخبوزات" },
-  { id: "personal_care", label: "عناية شخصية" },
-  { id: "plastics", label: "بلاستيك ومستلزمات تعبئة" },
-  { id: "hardware", label: "خردوات وأدوات" },
+  { id: "general_food", label: "مواد غذائية متكاملة" },
+  { id: "sweets", label: "حلويات وشوكولاتة" },
+  { id: "household_plastics", label: "مستلزمات منزلية وبلاستيكات" },
+  { id: "produce", label: "خضار وفواكه" },
+  { id: "bakery", label: "مخابز" },
+  { id: "nuts_coffee", label: "محامص ومكسرات" },
   { id: "other", label: "أخرى" },
 ];
 
 function AccountStep({ onDone, applicantType }) {
   const [form, setForm] = useState({
     store_name: "",
-    store_category: "beverages",
+    store_category: "general_food",
     full_name: "",
     email: "",
     password: "",
@@ -178,7 +173,7 @@ function AccountStep({ onDone, applicantType }) {
           <CheckCircle2 className="mx-auto mb-3" size={28} style={{ color: T.good }} />
           <div className="text-sm font-medium mb-1" style={{ color: T.ink }}>تحقق من بريدك</div>
           <div className="text-xs" style={{ color: T.sub }}>
-            بعتنالك رابط تأكيد على {form.email}. بعد ما تفعّل، رجّع سجّل دخول من نفس الصفحة عشان تكمّل رفع المستندات.
+            تم إرسال رابط تأكيد إلى {form.email}. بعد التفعيل، يرجى تسجيل الدخول من نفس الصفحة لإكمال رفع المستندات.
           </div>
         </div>
       </Card>
@@ -299,7 +294,7 @@ function DocumentsStep({ session, applicantType, requiredDocs, onDone }) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[13px] font-medium" style={{ color: T.ink }}>{label}</div>
-            <div className="text-[11px] truncate" style={{ color: T.sub }}>{files[label]?.name || "دوس لاختيار ملف"}</div>
+            <div className="text-[11px] truncate" style={{ color: T.sub }}>{files[label]?.name || "اختيار ملف"}</div>
           </div>
           <input type="file" accept=".pdf,image/*" className="hidden" onChange={pick(label)} />
         </label>
@@ -400,7 +395,7 @@ export default function OnboardingFlow({ applicantType, title, requiredDocs }) {
       {step >= 1 && !session && (
         <Card>
           <div className="text-xs text-center" style={{ color: T.sub }}>
-            فعّل بريدك الإلكتروني ثم سجّل دخول من جديد عشان تكمّل رفع المستندات.
+            يرجى تفعيل بريدك الإلكتروني ثم تسجيل الدخول من جديد لإكمال رفع المستندات.
           </div>
         </Card>
       )}
