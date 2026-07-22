@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "./supabaseClient.js";
 import { Upload, FileText, Loader2, CheckCircle2, Clock, XCircle, Package } from "lucide-react";
-
-const SUPABASE_URL = "https://euiuybhgdzcrdrfjjrut.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_YcAYaChM0-SEGkLTFmElbQ_PsS1m3YM";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const T = {
   ink: "#14213B",
