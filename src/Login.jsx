@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Package, Loader2 } from "lucide-react";
-import { supabase, setRememberMe, ROLE_ROUTES, ROLE_LABELS } from "./supabaseClient.js";
+import { supabase, setRememberMe, ROLE_ROUTES, LOGIN_OPTIONS, ADMIN_ROLE_IDS } from "./supabaseClient.js";
 
 const T = {
   ink: "#14213B",
@@ -14,7 +14,7 @@ const T = {
 
 export default function Login() {
   const navigate = useNavigate();
-  const [role, setRole] = useState("site_manager");
+  const [role, setRole] = useState("admin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -35,22 +35,28 @@ export default function Login() {
       return;
     }
 
-    // نتأكد إن الحساب فعلاً عنده الدور اللي اختاره من القائمة
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role_id")
       .eq("user_id", data.user.id);
 
-    const hasRole = (roles || []).some((r) => r.role_id === role);
+    const userRoleIds = (roles || []).map((r) => r.role_id);
+
+    // "الإدارة" يطابق أي دور من الأدوار الإدارية الأربعة، مو دور واحد بعينه
+    const matched =
+      role === "admin"
+        ? userRoleIds.find((r) => ADMIN_ROLE_IDS.includes(r))
+        : userRoleIds.find((r) => r === role);
+
     setLoading(false);
 
-    if (!hasRole) {
-      setErr(`هذا الحساب ما عنده دور "${ROLE_LABELS[role]}". تأكد من اختيار الدور الصحيح.`);
+    if (!matched) {
+      setErr("هذا الحساب ما عنده صلاحية الدخول بهذا الخيار. تأكد من اختيارك.");
       await supabase.auth.signOut();
       return;
     }
 
-    navigate(ROLE_ROUTES[role] || "/");
+    navigate(ROLE_ROUTES[matched] || "/");
   };
 
   return (
@@ -77,8 +83,8 @@ export default function Login() {
           className="w-full text-sm rounded-lg py-2 px-3 mb-4 outline-none"
           style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
         >
-          {Object.entries(ROLE_LABELS).map(([id, label]) => (
-            <option key={id} value={id}>{label}</option>
+          {LOGIN_OPTIONS.map((opt) => (
+            <option key={opt.id} value={opt.id}>{opt.label}</option>
           ))}
         </select>
 
