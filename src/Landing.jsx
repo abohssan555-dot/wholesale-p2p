@@ -12,7 +12,7 @@ import {
   Star,
   Megaphone,
   X,
-  ShieldCheck,
+  LogIn,
 } from "lucide-react";
 
 const SUPABASE_URL = "https://euiuybhgdzcrdrfjjrut.supabase.co";
@@ -57,15 +57,29 @@ const NEWS = [
   { title: "إضافة قسم توصيل الخضار والفواكه الطازجة", tag: "تطوير" },
 ];
 
-function StatCard({ icon: Icon, value, label }) {
+const STATS_META = [
+  { key: "approved_traders", icon: Store, label: "تاجر معتمد" },
+  { key: "business_customers", icon: Building2, label: "عميل مؤسسة" },
+  { key: "approved_drivers", icon: Truck, label: "سائق نشط" },
+  { key: "cities", icon: MapPin, label: "مدينة مُغطّاة" },
+];
+
+function StatsStrip({ stats }) {
   return (
-    <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: T.paperDeep }}>
-        <Icon size={18} style={{ color: T.sealDeep }} />
-      </div>
-      <div>
-        <div className="text-xl font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{value}</div>
-        <div className="text-[11px]" style={{ color: T.sub }}>{label}</div>
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {STATS_META.map((s) => {
+        const Icon = s.icon;
+        return (
+          <div key={s.key} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}>
+            <Icon size={13} style={{ color: T.sealDeep }} />
+            <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{stats?.[s.key] ?? "—"}</span>
+            <span style={{ color: T.sub }}>{s.label}</span>
+          </div>
+        );
+      })}
+      <div className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}>
+        <Package size={13} style={{ color: T.sealDeep }} />
+        <span style={{ color: T.sub }}>منتج على المنصة: قريباً</span>
       </div>
     </div>
   );
@@ -148,10 +162,10 @@ export default function Landing() {
         </div>
         <a
           href="/login"
-          className="text-xs font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
-          style={{ color: T.sub, border: `1px solid ${T.line}`, textDecoration: "none" }}
+          className="text-xs font-semibold flex items-center gap-1.5 px-4 py-2 rounded-full transition-transform hover:-translate-y-0.5"
+          style={{ background: T.seal, color: T.ink, textDecoration: "none" }}
         >
-          <ShieldCheck size={13} /> تسجيل الدخول
+          <LogIn size={13} /> تسجيل الدخول
         </a>
       </header>
 
@@ -176,13 +190,7 @@ export default function Landing() {
 
       {/* Stats */}
       <section className="px-6 md:px-10 pb-10 max-w-5xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <StatCard icon={Store} value={stats?.approved_traders ?? "—"} label="تاجر معتمد" />
-          <StatCard icon={Building2} value={stats?.business_customers ?? "—"} label="عميل مؤسسة" />
-          <StatCard icon={Truck} value={stats?.approved_drivers ?? "—"} label="سائق نشط" />
-          <StatCard icon={MapPin} value={stats?.cities ?? "—"} label="مدينة مُغطّاة" />
-          <StatCard icon={Package} value="قريباً" label="منتج على المنصة" />
-        </div>
+        <StatsStrip stats={stats} />
       </section>
 
       {/* الإعلانات — المساحة الرئيسية المستغلة من دمج قسم الأدوار */}
