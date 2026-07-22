@@ -39,7 +39,7 @@ export const ROLE_ROUTES = {
   financial_supervisor: "/admin", // نفس لوحة الإدارة حالياً، هتنفصل لاحقاً
   logistics_supervisor: "/admin",
   customer_support: "/admin",
-  trader: "/trader/status",
+  trader: "/trader/dashboard",
   business_customer: "/business/status",
   driver: "/driver/status",
   individual_customer: "/individual",
