@@ -55,3 +55,15 @@ export const ROLE_LABELS = {
   driver: "سائق",
   individual_customer: "عميل فردي",
 };
+
+// الأدوار الإدارية الأربعة تظهر للزوار كخيار واحد "الإدارة" بدل
+// ما تكشف مسمّيات داخلية (مدير/مالي/لوجستي/دعم) في شاشة دخول عامة.
+export const ADMIN_ROLE_IDS = ["site_manager", "financial_supervisor", "logistics_supervisor", "customer_support"];
+
+export const LOGIN_OPTIONS = [
+  { id: "admin", label: "الإدارة" },
+  { id: "trader", label: "تاجر" },
+  { id: "business_customer", label: "عميل مؤسسة" },
+  { id: "driver", label: "سائق" },
+  { id: "individual_customer", label: "عميل فردي" },
+];
