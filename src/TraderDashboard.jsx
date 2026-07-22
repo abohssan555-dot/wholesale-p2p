@@ -194,7 +194,7 @@ function ImportPanel({ session, categories, onImported }) {
           style={{ background: T.paper, border: `1px dashed ${T.line}` }}
         >
           <Upload size={22} style={{ color: T.sealDeep }} />
-          <span className="text-xs" style={{ color: T.sub }}>{fileName || "دوس لاختيار ملف .xlsx"}</span>
+          <span className="text-xs" style={{ color: T.sub }}>{fileName || "اختيار ملف .xlsx"}</span>
           <input type="file" accept=".xlsx,.xls" className="hidden" onChange={pick} />
         </label>
       )}
