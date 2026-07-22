@@ -71,6 +71,39 @@ function StatCard({ icon: Icon, value, label }) {
   );
 }
 
+function RoleModal({ onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(20,33,59,0.55)" }} onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-xl p-6"
+        style={{ background: "#fff", border: `1px solid ${T.line}` }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-semibold" style={{ color: T.ink }}>وش دورك؟</span>
+          <button onClick={onClose}><X size={16} style={{ color: T.sub }} /></button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {ROLES.map((r) => {
+            const Icon = r.icon;
+            return (
+              <a
+                key={r.id}
+                href={r.href}
+                className="rounded-lg p-4 flex flex-col items-center text-center gap-2"
+                style={{ background: T.paper, border: `1px solid ${T.line}`, textDecoration: "none" }}
+              >
+                <Icon size={20} style={{ color: T.sealDeep }} />
+                <span className="text-xs font-medium" style={{ color: T.ink }}>{r.title}</span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PopupBanner({ onClose }) {
   return (
     <div
@@ -95,6 +128,7 @@ export default function Landing() {
   useFonts();
   const [stats, setStats] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [showRoles, setShowRoles] = useState(false);
 
   useEffect(() => {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
@@ -135,9 +169,9 @@ export default function Landing() {
         <p className="text-sm md:text-base max-w-xl mx-auto mb-8" style={{ color: T.sub }}>
           تصفّح، اطلب، واستلم من أي تاجر جملة معتمد — بفاتورة واحدة وتجربة شراء موحّدة، بغض النظر عن عدد التجّار اللي تطلب منهم.
         </p>
-        <a href="#roles" className="inline-flex items-center gap-1 text-sm font-medium px-5 py-2.5 rounded-lg" style={{ background: T.ink, color: "#fff", textDecoration: "none" }}>
+        <button onClick={() => setShowRoles(true)} className="inline-flex items-center gap-1 text-sm font-medium px-5 py-2.5 rounded-lg" style={{ background: T.ink, color: "#fff", border: "none", cursor: "pointer" }}>
           ابدأ من هنا <ArrowLeft size={14} />
-        </a>
+        </button>
       </section>
 
       {/* Stats */}
@@ -148,26 +182,6 @@ export default function Landing() {
           <StatCard icon={Truck} value={stats?.approved_drivers ?? "—"} label="سائق نشط" />
           <StatCard icon={MapPin} value={stats?.cities ?? "—"} label="مدينة مُغطّاة" />
           <StatCard icon={Package} value="قريباً" label="منتج على المنصة" />
-        </div>
-      </section>
-
-      {/* Role links — شريط مضغوط، الاختيار التفصيلي صار عبر ابدأ من هنا */}
-      <section id="roles" className="px-6 md:px-10 pb-8 max-w-5xl mx-auto">
-        <div className="flex flex-wrap gap-2 justify-center">
-          {ROLES.map((r) => {
-            const Icon = r.icon;
-            return (
-              <a
-                key={r.id}
-                href={r.href}
-                className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full transition-transform hover:-translate-y-0.5"
-                style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink, textDecoration: "none" }}
-              >
-                <Icon size={14} style={{ color: T.sealDeep }} />
-                {r.title}
-              </a>
-            );
-          })}
         </div>
       </section>
 
@@ -235,6 +249,7 @@ export default function Landing() {
       </footer>
 
       {showPopup && <PopupBanner onClose={() => setShowPopup(false)} />}
+      {showRoles && <RoleModal onClose={() => setShowRoles(false)} />}
     </div>
   );
 }
