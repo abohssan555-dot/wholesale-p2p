@@ -32,6 +32,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             />
           }
         />
+        <Route
+          path="/driver"
+          element={
+            <OnboardingFlow
+              applicantType="driver"
+              title="تسجيل سائق جديد"
+              requiredDocs={["رخصة القيادة", "استمارة المركبة"]}
+            />
+          }
+        />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
