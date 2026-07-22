@@ -97,8 +97,16 @@ function Steps({ step }) {
   );
 }
 
-function AccountStep({ onDone }) {
-  const [form, setForm] = useState({ full_name: "", email: "", password: "", phone: "", city: "" });
+const VEHICLE_LABELS = {
+  motorcycle: "دراجة نارية",
+  small_car: "سيارة صغيرة",
+  pickup: "وانيت",
+  van: "حافلة",
+  truck: "دينا",
+};
+
+function AccountStep({ onDone, applicantType }) {
+  const [form, setForm] = useState({ full_name: "", email: "", password: "", phone: "", city: "", vehicle_type: "motorcycle" });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [needsConfirm, setNeedsConfirm] = useState(false);
@@ -109,10 +117,12 @@ function AccountStep({ onDone }) {
     e.preventDefault();
     setErr("");
     setLoading(true);
+    const meta = { full_name: form.full_name, phone: form.phone, city: form.city };
+    if (applicantType === "driver") meta.vehicle_type = form.vehicle_type;
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { full_name: form.full_name, phone: form.phone, city: form.city } },
+      options: { data: meta },
     });
     setLoading(false);
     if (error) {
@@ -146,6 +156,21 @@ function AccountStep({ onDone }) {
         <Field label="الاسم الكامل" required value={form.full_name} onChange={set("full_name")} />
         <Field label="رقم الجوال" required value={form.phone} onChange={set("phone")} placeholder="05xxxxxxxx" />
         <Field label="المدينة" required value={form.city} onChange={set("city")} />
+        {applicantType === "driver" && (
+          <div className="mb-4">
+            <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>نوع المركبة</label>
+            <select
+              value={form.vehicle_type}
+              onChange={set("vehicle_type")}
+              className="w-full text-sm rounded-lg py-2 px-3 outline-none"
+              style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+            >
+              {Object.entries(VEHICLE_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <Field label="البريد الإلكتروني" type="email" required value={form.email} onChange={set("email")} />
         <Field label="كلمة المرور" type="password" required value={form.password} onChange={set("password")} />
         {err && <div className="text-xs mb-3" style={{ color: T.bad }}>{err}</div>}
@@ -313,7 +338,7 @@ export default function OnboardingFlow({ applicantType, title, requiredDocs }) {
   return (
     <Shell subtitle={title}>
       <Steps step={step} />
-      {step === 0 && <AccountStep onDone={() => setStep(1)} />}
+      {step === 0 && <AccountStep onDone={() => setStep(1)} applicantType={applicantType} />}
       {step === 1 && session && (
         <DocumentsStep session={session} applicantType={applicantType} requiredDocs={requiredDocs} onDone={() => setStep(2)} />
       )}
