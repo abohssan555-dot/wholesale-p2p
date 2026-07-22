@@ -135,11 +135,11 @@ export default function Landing() {
           <span className="font-semibold text-[15px]" style={{ color: T.ink }}>منصة الجملة</span>
         </div>
         <a
-          href="/admin"
+          href="/login"
           className="text-xs font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
           style={{ color: T.sub, border: `1px solid ${T.line}`, textDecoration: "none" }}
         >
-          <ShieldCheck size={13} /> دخول الموظفين
+          <ShieldCheck size={13} /> تسجيل الدخول
         </a>
       </header>
 
@@ -157,28 +157,24 @@ export default function Landing() {
         <p className="text-sm md:text-base max-w-xl mx-auto mb-8" style={{ color: T.sub }}>
           تصفّح، اطلب، واستلم من أي تاجر جملة معتمد — بفاتورة واحدة وتجربة شراء موحّدة، بغض النظر عن عدد التجّار اللي تطلب منهم.
         </p>
-        <div className="flex items-center justify-center gap-3 flex-wrap">
-          <a href="/trader" className="text-sm font-medium px-5 py-2.5 rounded-lg" style={{ background: T.ink, color: "#fff", textDecoration: "none" }}>
-            سجّل متجرك كتاجر
-          </a>
-          <a href="/individual" className="text-sm font-medium px-5 py-2.5 rounded-lg" style={{ background: "#fff", color: T.ink, border: `1px solid ${T.line}`, textDecoration: "none" }}>
-            تصفّح كعميل
-          </a>
-        </div>
+        <a href="#roles" className="inline-flex items-center gap-1 text-sm font-medium px-5 py-2.5 rounded-lg" style={{ background: T.ink, color: "#fff", textDecoration: "none" }}>
+          ابدأ من هنا <ArrowLeft size={14} />
+        </a>
       </section>
 
       {/* Stats */}
       <section className="px-6 md:px-10 pb-10 max-w-5xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <StatCard icon={Store} value={stats?.approved_traders ?? "—"} label="تاجر معتمد" />
           <StatCard icon={Building2} value={stats?.business_customers ?? "—"} label="عميل مؤسسة" />
           <StatCard icon={Truck} value={stats?.approved_drivers ?? "—"} label="سائق نشط" />
           <StatCard icon={MapPin} value={stats?.cities ?? "—"} label="مدينة مُغطّاة" />
+          <StatCard icon={Package} value="قريباً" label="منتج على المنصة" />
         </div>
       </section>
 
       {/* Role cards */}
-      <section className="px-6 md:px-10 pb-12 max-w-5xl mx-auto">
+      <section id="roles" className="px-6 md:px-10 pb-12 max-w-5xl mx-auto">
         <h2 className="text-lg font-semibold mb-1" style={{ color: T.ink }}>وش دورك؟</h2>
         <p className="text-xs mb-5" style={{ color: T.sub }}>اختر المسار المناسب لك وابدأ التسجيل.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
