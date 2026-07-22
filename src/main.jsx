@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ManagerDashboard from "./ManagerDashboard.jsx";
-import TraderOnboarding from "./TraderOnboarding.jsx";
+import OnboardingFlow from "./OnboardingFlow.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -12,7 +12,26 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         {/* مؤقت: يحول الصفحة الرئيسية لدخول المدير لين نبني صفحة هبوط حقيقية */}
         <Route path="/" element={<Navigate to="/admin" replace />} />
         <Route path="/admin" element={<ManagerDashboard />} />
-        <Route path="/trader" element={<TraderOnboarding />} />
+        <Route
+          path="/trader"
+          element={
+            <OnboardingFlow
+              applicantType="trader"
+              title="تسجيل تاجر جديد"
+              requiredDocs={["السجل التجاري", "رخصة بلدية"]}
+            />
+          }
+        />
+        <Route
+          path="/business"
+          element={
+            <OnboardingFlow
+              applicantType="business_customer"
+              title="تسجيل عميل مؤسسة"
+              requiredDocs={["السجل التجاري", "هوية المفوّض"]}
+            />
+          }
+        />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
