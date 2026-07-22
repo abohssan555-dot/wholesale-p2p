@@ -1,17 +1,17 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ManagerDashboard from "./ManagerDashboard.jsx";
 import OnboardingFlow from "./OnboardingFlow.jsx";
 import IndividualCustomer from "./IndividualCustomer.jsx";
+import Landing from "./Landing.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        {/* مؤقت: يحول الصفحة الرئيسية لدخول المدير لين نبني صفحة هبوط حقيقية */}
-        <Route path="/" element={<Navigate to="/admin" replace />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/admin" element={<ManagerDashboard />} />
         <Route
           path="/trader"
