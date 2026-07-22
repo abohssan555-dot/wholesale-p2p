@@ -105,8 +105,33 @@ const VEHICLE_LABELS = {
   truck: "دينا",
 };
 
+const STORE_CATEGORIES = [
+  { id: "beverages", label: "مشروبات وعصائر" },
+  { id: "dairy", label: "ألبان وأجبان" },
+  { id: "grains_rice", label: "أرز وحبوب" },
+  { id: "canned_goods", label: "معلبات" },
+  { id: "cleaning", label: "منظفات ومستلزمات منزلية" },
+  { id: "snacks", label: "وجبات خفيفة وحلويات" },
+  { id: "fresh_produce", label: "خضار وفواكه" },
+  { id: "bakery", label: "مخبوزات" },
+  { id: "personal_care", label: "عناية شخصية" },
+  { id: "plastics", label: "بلاستيك ومستلزمات تعبئة" },
+  { id: "hardware", label: "خردوات وأدوات" },
+  { id: "other", label: "أخرى" },
+];
+
 function AccountStep({ onDone, applicantType }) {
-  const [form, setForm] = useState({ full_name: "", email: "", password: "", phone: "", city: "", vehicle_type: "motorcycle" });
+  const [form, setForm] = useState({
+    store_name: "",
+    store_category: "beverages",
+    full_name: "",
+    email: "",
+    password: "",
+    confirm_password: "",
+    phone: "",
+    city: "",
+    vehicle_type: "motorcycle",
+  });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [needsConfirm, setNeedsConfirm] = useState(false);
@@ -116,9 +141,23 @@ function AccountStep({ onDone, applicantType }) {
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
+
+    if (form.password !== form.confirm_password) {
+      setErr("كلمة المرور وتأكيدها غير متطابقين.");
+      return;
+    }
+    if (form.password.length < 6) {
+      setErr("كلمة المرور لازم تكون 6 أحرف على الأقل.");
+      return;
+    }
+
     setLoading(true);
     const meta = { full_name: form.full_name, phone: form.phone, city: form.city };
     if (applicantType === "driver") meta.vehicle_type = form.vehicle_type;
+    if (applicantType === "trader") {
+      meta.store_name = form.store_name;
+      meta.store_category = form.store_category;
+    }
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -153,7 +192,24 @@ function AccountStep({ onDone, applicantType }) {
   return (
     <Card>
       <form onSubmit={submit}>
-        <Field label="الاسم الكامل" required value={form.full_name} onChange={set("full_name")} />
+        {applicantType === "trader" && (
+          <>
+            <Field label="اسم المتجر" required value={form.store_name} onChange={set("store_name")} />
+            <div className="mb-4">
+              <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>فئة المتجر</label>
+              <select
+                value={form.store_category}
+                onChange={set("store_category")}
+                className="w-full text-sm rounded-lg py-2 px-3 outline-none"
+                style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+              >
+                {STORE_CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
         <Field label="رقم الجوال" required value={form.phone} onChange={set("phone")} placeholder="05xxxxxxxx" />
         <Field label="المدينة" required value={form.city} onChange={set("city")} />
         {applicantType === "driver" && (
@@ -172,7 +228,9 @@ function AccountStep({ onDone, applicantType }) {
           </div>
         )}
         <Field label="البريد الإلكتروني" type="email" required value={form.email} onChange={set("email")} />
+        <Field label="اسم صاحب الحساب" required value={form.full_name} onChange={set("full_name")} />
         <Field label="كلمة المرور" type="password" required value={form.password} onChange={set("password")} />
+        <Field label="تأكيد كلمة المرور" type="password" required value={form.confirm_password} onChange={set("confirm_password")} />
         {err && <div className="text-xs mb-3" style={{ color: T.bad }}>{err}</div>}
         <button
           type="submit"
@@ -223,7 +281,7 @@ function DocumentsStep({ session, applicantType, requiredDocs, onDone }) {
       if (reqErr) throw reqErr;
       onDone();
     } catch (e) {
-      setErr("صار خطأ وقت الرفع، حاول مرة ثانية.");
+      setErr(`حدث خطأ: ${e?.message || "غير معروف"} — يرجى المحاولة مرة أخرى أو التواصل مع الدعم.`);
     } finally {
       setLoading(false);
     }
