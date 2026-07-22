@@ -6,6 +6,7 @@ import OnboardingFlow from "./OnboardingFlow.jsx";
 import IndividualCustomer from "./IndividualCustomer.jsx";
 import Landing from "./Landing.jsx";
 import Login from "./Login.jsx";
+import TraderDashboard from "./TraderDashboard.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -25,6 +26,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             />
           }
         />
+        <Route path="/trader/dashboard" element={<TraderDashboard />} />
         <Route
           path="/business"
           element={
