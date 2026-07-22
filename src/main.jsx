@@ -5,6 +5,7 @@ import ManagerDashboard from "./ManagerDashboard.jsx";
 import OnboardingFlow from "./OnboardingFlow.jsx";
 import IndividualCustomer from "./IndividualCustomer.jsx";
 import Landing from "./Landing.jsx";
+import Login from "./Login.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -12,6 +13,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<ManagerDashboard />} />
         <Route
           path="/trader"
