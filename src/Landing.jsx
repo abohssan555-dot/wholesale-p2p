@@ -71,28 +71,6 @@ function StatCard({ icon: Icon, value, label }) {
   );
 }
 
-function RoleCard({ role }) {
-  const Icon = role.icon;
-  return (
-    <a
-      href={role.href}
-      className="rounded-xl p-5 flex flex-col gap-3 transition-transform hover:-translate-y-0.5"
-      style={{ background: "#fff", border: `1px solid ${T.line}`, textDecoration: "none" }}
-    >
-      <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{ background: T.paperDeep }}>
-        <Icon size={20} style={{ color: T.sealDeep }} />
-      </div>
-      <div>
-        <div className="text-sm font-semibold" style={{ color: T.ink }}>{role.title}</div>
-        <div className="text-xs mt-1" style={{ color: T.sub }}>{role.desc}</div>
-      </div>
-      <div className="flex items-center gap-1 text-xs font-medium mt-1" style={{ color: T.sealDeep }}>
-        ابدأ الآن <ArrowLeft size={13} />
-      </div>
-    </a>
-  );
-}
-
 function PopupBanner({ onClose }) {
   return (
     <div
@@ -173,29 +151,50 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Role cards */}
-      <section id="roles" className="px-6 md:px-10 pb-12 max-w-5xl mx-auto">
-        <h2 className="text-lg font-semibold mb-1" style={{ color: T.ink }}>وش دورك؟</h2>
-        <p className="text-xs mb-5" style={{ color: T.sub }}>اختر المسار المناسب لك وابدأ التسجيل.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {ROLES.map((r) => <RoleCard key={r.id} role={r} />)}
+      {/* Role links — شريط مضغوط، الاختيار التفصيلي صار عبر ابدأ من هنا */}
+      <section id="roles" className="px-6 md:px-10 pb-8 max-w-5xl mx-auto">
+        <div className="flex flex-wrap gap-2 justify-center">
+          {ROLES.map((r) => {
+            const Icon = r.icon;
+            return (
+              <a
+                key={r.id}
+                href={r.href}
+                className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full transition-transform hover:-translate-y-0.5"
+                style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink, textDecoration: "none" }}
+              >
+                <Icon size={14} style={{ color: T.sealDeep }} />
+                {r.title}
+              </a>
+            );
+          })}
         </div>
       </section>
 
-      {/* Ad banner strip */}
+      {/* الإعلانات — المساحة الرئيسية المستغلة من دمج قسم الأدوار */}
       <section className="px-6 md:px-10 pb-12 max-w-5xl mx-auto">
-        <div
-          className="rounded-xl p-5 flex items-center gap-4 -rotate-[0.3deg]"
-          style={{ background: "linear-gradient(90deg, #FBF1DD, #F6F3EC)", border: `1px dashed ${T.seal}` }}
-        >
-          <Megaphone size={22} style={{ color: T.sealDeep }} className="shrink-0" />
-          <div className="flex-1">
-            <div className="text-sm font-semibold" style={{ color: T.ink }}>مساحة إعلانية مميزة</div>
-            <div className="text-xs" style={{ color: T.sub }}>هنا تظهر إعلانات التجّار المدفوعة — تُحجز من لوحة تحكم التاجر بمقاسات وأسعار مختلفة.</div>
+        <div className="flex items-center gap-2 mb-4">
+          <Megaphone size={16} style={{ color: T.sealDeep }} />
+          <span className="text-sm font-semibold" style={{ color: T.ink }}>إعلانات التجّار</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            className="md:col-span-2 rounded-xl p-6 flex items-center gap-4"
+            style={{ background: "linear-gradient(90deg, #FBF1DD, #F6F3EC)", border: `1px dashed ${T.seal}` }}
+          >
+            <Megaphone size={24} style={{ color: T.sealDeep }} className="shrink-0" />
+            <div className="flex-1">
+              <div className="text-sm font-semibold" style={{ color: T.ink }}>مساحة إعلانية مميزة — بانر كبير</div>
+              <div className="text-xs mt-1" style={{ color: T.sub }}>يُحجز من لوحة تحكم التاجر بمقاسات وأسعار مختلفة، ويظهر هنا لكل زوار المنصة.</div>
+            </div>
+            <a href="/trader" className="text-xs font-medium px-3 py-2 rounded-lg shrink-0" style={{ background: T.ink, color: "#fff", textDecoration: "none" }}>
+              احجز مساحتك
+            </a>
           </div>
-          <a href="/trader" className="text-xs font-medium px-3 py-2 rounded-lg shrink-0" style={{ background: T.ink, color: "#fff", textDecoration: "none" }}>
-            احجز مساحتك
-          </a>
+          <div className="rounded-xl p-6 flex flex-col items-center justify-center text-center gap-2" style={{ background: T.paperDeep, border: `1px dashed ${T.line}` }}>
+            <Megaphone size={20} style={{ color: T.sub }} />
+            <div className="text-xs" style={{ color: T.sub }}>مساحة إعلانية مربّعة — متاحة للحجز</div>
+          </div>
         </div>
       </section>
 
