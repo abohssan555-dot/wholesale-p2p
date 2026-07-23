@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
 import {
@@ -16,6 +16,7 @@ import {
   Check,
   X,
   ChevronLeft,
+  Home,
   FileText,
   LogOut,
   Loader2,
@@ -408,6 +409,13 @@ export default function ManagerDashboard() {
             <ChevronLeft size={14} />
             <span style={{ color: T.ink, fontWeight: 600 }}>{PAGES[active].title}</span>
           </div>
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg"
+            style={{ color: T.sub, border: `1px solid ${T.line}`, textDecoration: "none" }}
+          >
+            <Home size={13} /> الصفحة الرئيسية
+          </Link>
         </header>
         <div className="p-8">{PAGES[active].node}</div>
       </main>
