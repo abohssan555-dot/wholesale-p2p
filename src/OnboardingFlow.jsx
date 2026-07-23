@@ -251,15 +251,17 @@ function DocumentsStep({ session, applicantType, requiredDocs, onDone }) {
     setErr("");
     const missing = requiredDocs.filter((l) => !files[l]);
     if (missing.length) {
-      setErr(`ناقص: ${missing.join("، ")}`);
+      setErr(`الحقول الناقصة: ${missing.join("، ")}`);
       return;
     }
     setLoading(true);
     try {
       const uploaded = [];
-      for (const label of requiredDocs) {
+      for (let i = 0; i < requiredDocs.length; i++) {
+        const label = requiredDocs[i];
         const file = files[label];
-        const path = `${session.user.id}/${label}-${Date.now()}-${file.name}`;
+        const ext = (file.name.split(".").pop() || "bin").replace(/[^a-zA-Z0-9]/g, "");
+        const path = `${session.user.id}/doc-${i}-${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage.from("verification-docs").upload(path, file);
         if (upErr) throw upErr;
         uploaded.push({ label, path });
