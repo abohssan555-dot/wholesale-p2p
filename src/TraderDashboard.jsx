@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
-import { Package, Upload, Loader2, CheckCircle2, LogOut, FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { Package, Upload, Loader2, CheckCircle2, LogOut, FileSpreadsheet, AlertTriangle, Home } from "lucide-react";
 
 const T = {
   ink: "#14213B",
@@ -351,9 +351,18 @@ export default function TraderDashboard() {
           </div>
           <span className="font-semibold text-[15px]" style={{ color: T.ink }}>لوحة تحكم التاجر</span>
         </div>
-        <button onClick={() => supabase.auth.signOut()} className="text-xs font-medium flex items-center gap-1.5" style={{ color: T.sub }}>
-          <LogOut size={14} /> خروج
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg"
+            style={{ color: T.sub, border: `1px solid ${T.line}`, textDecoration: "none" }}
+          >
+            <Home size={13} /> الصفحة الرئيسية
+          </Link>
+          <button onClick={() => supabase.auth.signOut()} className="text-xs font-medium flex items-center gap-1.5" style={{ color: T.sub }}>
+            <LogOut size={14} /> خروج
+          </button>
+        </div>
       </header>
 
       <div className="p-6 md:p-10 max-w-4xl mx-auto flex flex-col gap-6">
