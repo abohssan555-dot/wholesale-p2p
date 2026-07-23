@@ -317,6 +317,9 @@ function DocumentsStep({ session, applicantType, requiredDocs, onDone }) {
 
 function StatusStep({ session }) {
   const [req, setReq] = useState(null);
+  const [emailVerified, setEmailVerified] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
   useEffect(() => {
     supabase
@@ -327,7 +330,35 @@ function StatusStep({ session }) {
       .limit(1)
       .single()
       .then(({ data }) => setReq(data));
+
+    supabase
+      .from("profiles")
+      .select("email_verified")
+      .eq("id", session.user.id)
+      .single()
+      .then(({ data }) => setEmailVerified(data?.email_verified ?? false));
   }, [session]);
+
+  // إذا وصل المستخدم عبر رابط تأكيد البريد (magiclink)، نُحدّث الحالة تلقائياً
+  useEffect(() => {
+    if (window.location.hash.includes("type=magiclink")) {
+      supabase
+        .from("profiles")
+        .update({ email_verified: true })
+        .eq("id", session.user.id)
+        .then(() => setEmailVerified(true));
+    }
+  }, [session]);
+
+  const sendVerification = async () => {
+    setSending(true);
+    await supabase.auth.signInWithOtp({
+      email: session.user.email,
+      options: { emailRedirectTo: window.location.href },
+    });
+    setSending(false);
+    setSent(true);
+  };
 
   const stageMeta = {
     submitted: { icon: Clock, label: "طلبك مُقدَّم، بانتظار المراجعة", tone: T.seal },
@@ -339,14 +370,43 @@ function StatusStep({ session }) {
 
   const meta = req ? stageMeta[req.stage] : null;
   const Icon = meta?.icon || Clock;
+  const showVerification = req?.stage === "approved" && emailVerified === false;
 
   return (
     <Card>
       <div className="text-center py-4">
         <Icon className="mx-auto mb-3" size={28} style={{ color: meta?.tone || T.sub }} />
         <div className="text-sm font-medium mb-1" style={{ color: T.ink }}>{meta?.label || "جارٍ التحميل..."}</div>
-        <div className="text-xs" style={{ color: T.sub }}>راح نبلغك بأي تحديث. تقدر تسكّر الصفحة وترجع لاحقاً تتأكد من الحالة.</div>
+        <div className="text-xs" style={{ color: T.sub }}>سيتم إبلاغك بأي تحديث. يمكنك إغلاق الصفحة والعودة لاحقاً للاطلاع على الحالة.</div>
       </div>
+
+      {showVerification && !sent && (
+        <div className="mt-4 pt-4 flex flex-col items-center gap-2" style={{ borderTop: `1px solid ${T.line}` }}>
+          <div className="text-xs text-center" style={{ color: T.sub }}>
+            خطوة تفعيل إضافية: يرجى تأكيد بريدك الإلكتروني حتى نتمكن من التواصل معك عند الحاجة.
+          </div>
+          <button
+            onClick={sendVerification}
+            disabled={sending}
+            className="text-xs font-medium px-4 py-2 rounded-lg mt-1"
+            style={{ background: T.ink, color: "#fff" }}
+          >
+            {sending ? "جارٍ الإرسال..." : "إرسال رابط تأكيد البريد"}
+          </button>
+        </div>
+      )}
+
+      {sent && (
+        <div className="mt-4 pt-4 text-xs text-center" style={{ borderTop: `1px solid ${T.line}`, color: T.sub }}>
+          تم إرسال رابط التأكيد إلى بريدك. يرجى الضغط عليه لإتمام التفعيل.
+        </div>
+      )}
+
+      {req?.stage === "approved" && emailVerified === true && (
+        <div className="mt-4 pt-4 flex items-center justify-center gap-1.5 text-xs" style={{ borderTop: `1px solid ${T.line}`, color: T.good }}>
+          <CheckCircle2 size={13} /> تم تأكيد البريد الإلكتروني
+        </div>
+      )}
     </Card>
   );
 }
