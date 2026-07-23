@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Package, Loader2 } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Package, Loader2, ArrowRight, Home } from "lucide-react";
 import { supabase, setRememberMe, ROLE_ROUTES, LOGIN_OPTIONS, ADMIN_ROLE_IDS } from "./supabaseClient.js";
 
 const T = {
@@ -51,7 +51,7 @@ export default function Login() {
     setLoading(false);
 
     if (!matched) {
-      setErr("هذا الحساب ما عنده صلاحية الدخول بهذا الخيار. تأكد من اختيارك.");
+      setErr("هذا الحساب لا يملك صلاحية الدخول بهذا الخيار. يرجى التأكد من اختيارك.");
       await supabase.auth.signOut();
       return;
     }
@@ -65,7 +65,24 @@ export default function Login() {
       className="w-full min-h-screen flex items-center justify-center p-6"
       style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper }}
     >
-      <form onSubmit={submit} className="w-full max-w-sm rounded-xl p-7" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+      <div className="w-full max-w-sm">
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-lg"
+            style={{ color: T.sub }}
+          >
+            <ArrowRight size={14} /> رجوع
+          </button>
+          <Link
+            to="/"
+            className="flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-lg"
+            style={{ color: T.sub, textDecoration: "none" }}
+          >
+            الصفحة الرئيسية <Home size={14} />
+          </Link>
+        </div>
+        <form onSubmit={submit} className="rounded-xl p-7" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
@@ -125,6 +142,7 @@ export default function Login() {
           دخول
         </button>
       </form>
+      </div>
     </div>
   );
 }
