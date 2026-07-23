@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
-import { Package, Loader2, CheckCircle2, Mail } from "lucide-react";
+import { Package, Loader2, CheckCircle2, Mail, ArrowRight, Home } from "lucide-react";
 
 const T = {
   ink: "#14213B",
@@ -27,6 +28,7 @@ function useFonts() {
 }
 
 function Shell({ children }) {
+  const navigate = useNavigate();
   return (
     <div
       dir="rtl"
@@ -34,6 +36,22 @@ function Shell({ children }) {
       style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper }}
     >
       <div className="w-full max-w-sm">
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-lg"
+            style={{ color: T.sub }}
+          >
+            <ArrowRight size={14} /> رجوع
+          </button>
+          <Link
+            to="/"
+            className="flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-lg"
+            style={{ color: T.sub, textDecoration: "none" }}
+          >
+            الصفحة الرئيسية <Home size={14} />
+          </Link>
+        </div>
         <div className="flex items-center gap-2 mb-6 justify-center">
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
