@@ -111,6 +111,13 @@ const STORE_CATEGORIES = [
   { id: "other", label: "أخرى" },
 ];
 
+const SAUDI_CITIES = [
+  "الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام",
+  "الخبر", "الظهران", "الطائف", "تبوك", "بريدة", "عنيزة",
+  "خميس مشيط", "أبها", "نجران", "جازان", "ينبع", "الجبيل",
+  "حائل", "الأحساء", "الباحة", "عرعر", "سكاكا", "القنفذة", "بدر", "أخرى",
+];
+
 function AccountStep({ onDone, applicantType }) {
   const [form, setForm] = useState({
     store_name: "",
@@ -120,7 +127,7 @@ function AccountStep({ onDone, applicantType }) {
     password: "",
     confirm_password: "",
     phone: "",
-    city: "",
+    city: "الرياض",
     vehicle_type: "motorcycle",
   });
   const [err, setErr] = useState("");
@@ -202,7 +209,19 @@ function AccountStep({ onDone, applicantType }) {
           </>
         )}
         <Field label="رقم الجوال" required value={form.phone} onChange={set("phone")} placeholder="05xxxxxxxx" />
-        <Field label="المدينة" required value={form.city} onChange={set("city")} />
+        <div className="mb-4">
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>المدينة</label>
+          <select
+            value={form.city}
+            onChange={set("city")}
+            className="w-full text-sm rounded-lg py-2 px-3 outline-none"
+            style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+          >
+            {SAUDI_CITIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
         {applicantType === "driver" && (
           <div className="mb-4">
             <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>نوع المركبة</label>
