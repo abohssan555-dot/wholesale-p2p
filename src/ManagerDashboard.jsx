@@ -342,10 +342,11 @@ export default function ManagerDashboard() {
 
     setLoading((l) => ({ ...l, requests: true, accounts: true, audit: true }));
 
-    const { data: reqs } = await supabase
+    const { data: reqs, error: reqsErr } = await supabase
       .from("verification_requests")
-      .select("*, profiles(full_name)")
+      .select("*, profiles!applicant_id(full_name)")
       .order("submitted_at", { ascending: false });
+    if (reqsErr) console.error("verification_requests fetch error:", reqsErr);
     setRequests(reqs || []);
     setLoading((l) => ({ ...l, requests: false }));
 
