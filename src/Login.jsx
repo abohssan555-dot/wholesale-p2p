@@ -88,7 +88,7 @@ export default function Login() {
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
           <div>
-            <div className="font-semibold text-[15px]" style={{ color: T.ink }}>منصة الجملة</div>
+            <div className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</div>
             <div className="text-[11px]" style={{ color: T.sub }}>تسجيل الدخول</div>
           </div>
         </div>
