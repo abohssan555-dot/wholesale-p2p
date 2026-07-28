@@ -40,7 +40,7 @@ export const ROLE_ROUTES = {
   logistics_supervisor: "/admin",
   customer_support: "/admin",
   trader: "/trader/dashboard",
-  business_customer: "/business/status",
+  business_customer: "/business/shop",
   driver: "/driver/status",
   individual_customer: "/individual",
 };
