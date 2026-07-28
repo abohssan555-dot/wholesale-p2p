@@ -7,6 +7,7 @@ import IndividualCustomer from "./IndividualCustomer.jsx";
 import Landing from "./Landing.jsx";
 import Login from "./Login.jsx";
 import TraderDashboard from "./TraderDashboard.jsx";
+import ProductBrowse from "./ProductBrowse.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -37,6 +38,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             />
           }
         />
+        <Route path="/business/shop" element={<ProductBrowse />} />
         <Route
           path="/driver"
           element={
