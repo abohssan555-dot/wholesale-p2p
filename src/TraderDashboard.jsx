@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
-import { Package, Upload, Loader2, CheckCircle2, LogOut, FileSpreadsheet, AlertTriangle, Home } from "lucide-react";
+import { Package, Upload, Loader2, CheckCircle2, LogOut, FileSpreadsheet, AlertTriangle, Home, Store } from "lucide-react";
 
 const T = {
   ink: "#14213B",
@@ -471,6 +471,7 @@ export default function TraderDashboard() {
   const [checking, setChecking] = useState(true);
   const [listings, setListings] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [loadingListings, setLoadingListings] = useState(true);
   const [addMethod, setAddMethod] = useState("manual");
 
@@ -498,7 +499,11 @@ export default function TraderDashboard() {
   useEffect(() => {
     loadListings();
     supabase.from("product_categories").select("*").then(({ data }) => setCategories(data || []));
-  }, [loadListings]);
+    if (session) {
+      supabase.from("profiles").select("store_name, full_name").eq("id", session.user.id).single()
+        .then(({ data }) => setProfile(data));
+    }
+  }, [loadListings, session]);
 
   if (checking) {
     return (
@@ -519,7 +524,7 @@ export default function TraderDashboard() {
           </div>
           <div>
             <div className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</div>
-            <div className="text-[11px]" style={{ color: T.sub }}>لوحة تحكم التاجر</div>
+            <div className="text-[11px]" style={{ color: T.sub }}>لوحة تحكم متجر {profile?.store_name || "التاجر"}</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -537,6 +542,15 @@ export default function TraderDashboard() {
       </header>
 
       <div className="p-6 md:p-10 max-w-4xl mx-auto flex flex-col gap-6">
+        <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: T.goodBg, border: `1px solid #BFE0CE` }}>
+          <Store size={20} style={{ color: T.good }} />
+          <div>
+            <div className="text-sm font-semibold" style={{ color: T.ink }}>
+              أهلاً بك، متجر {profile?.store_name || "..."}
+            </div>
+            <div className="text-[11px]" style={{ color: T.sub }}>هذه لوحة التحكم الخاصة بمتجرك على منصة أصناف الجملة</div>
+          </div>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => setAddMethod("manual")}
