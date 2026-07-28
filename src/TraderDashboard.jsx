@@ -70,6 +70,173 @@ function parseSheet(file) {
   });
 }
 
+function ManualAddForm({ session, categories, onAdded }) {
+  const [form, setForm] = useState({
+    name: "", barcode: "", category_id: "other", unit: "كرتون",
+    quantity: "", cost: "", wholesale_price: "", retail_price: "", sku: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [matched, setMatched] = useState(null); // null = لم يُفحص بعد، false = صنف جديد، object = صنف موجود
+  const [err, setErr] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const set = (k) => (e) => {
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+    if (k === "barcode") setMatched(null);
+  };
+
+  const checkBarcode = async () => {
+    if (!form.barcode.trim()) return;
+    setChecking(true);
+    const { data } = await supabase
+      .from("product_catalog")
+      .select("id, name")
+      .eq("barcode", form.barcode.trim())
+      .maybeSingle();
+    setChecking(false);
+    if (data) {
+      setMatched(data);
+      setForm((f) => ({ ...f, name: data.name }));
+    } else {
+      setMatched(false);
+    }
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr("");
+    if (!form.name.trim() || !form.wholesale_price) {
+      setErr("اسم المنتج وسعر الجملة حقلان إجباريان.");
+      return;
+    }
+    setLoading(true);
+    try {
+      let catalogId = null;
+
+      if (form.barcode.trim()) {
+        const { data: existing } = await supabase
+          .from("product_catalog")
+          .select("id")
+          .eq("barcode", form.barcode.trim())
+          .maybeSingle();
+        if (existing) catalogId = existing.id;
+      }
+
+      if (!catalogId) {
+        const { data: newCat, error: catErr } = await supabase
+          .from("product_catalog")
+          .insert({
+            barcode: form.barcode.trim() || null,
+            name: form.name.trim(),
+            category_id: form.category_id,
+            created_by: session.user.id,
+          })
+          .select("id")
+          .single();
+        if (catErr) throw catErr;
+        catalogId = newCat.id;
+      }
+
+      const { error: listErr } = await supabase.from("trader_listings").upsert(
+        {
+          trader_id: session.user.id,
+          catalog_id: catalogId,
+          sku: form.sku || null,
+          quantity: Number(form.quantity) || 0,
+          cost: form.cost ? Number(form.cost) : null,
+          wholesale_price: Number(form.wholesale_price),
+          retail_price: form.retail_price ? Number(form.retail_price) : null,
+          active: true,
+        },
+        { onConflict: "trader_id,catalog_id" }
+      );
+      if (listErr) throw listErr;
+
+      setSuccess(true);
+      setForm({ name: "", barcode: "", category_id: "other", unit: "كرتون", quantity: "", cost: "", wholesale_price: "", retail_price: "", sku: "" });
+      onAdded();
+      setTimeout(() => setSuccess(false), 2500);
+    } catch (e) {
+      setErr(`حدث خطأ: ${e?.message || "غير معروف"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl p-6" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+      <div className="text-sm font-semibold mb-1" style={{ color: T.ink }}>إضافة منتج واحد</div>
+      <div className="text-xs mb-4" style={{ color: T.sub }}>الطريقة الأسرع لو عندك منتجات قليلة — بدون ملفات.</div>
+
+      <form onSubmit={submit} className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>اسم المنتج *</label>
+          <input value={form.name} onChange={set("name")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الباركود (اختياري)</label>
+          <div className="flex gap-1.5">
+            <input value={form.barcode} onChange={set("barcode")} className="flex-1 text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+            <button type="button" onClick={checkBarcode} disabled={checking || !form.barcode.trim()} className="text-xs font-medium px-3 rounded-lg" style={{ background: T.paperDeep, color: T.sealDeep }}>
+              {checking ? <Loader2 size={13} className="animate-spin" /> : "تحقق"}
+            </button>
+          </div>
+          {matched === false && (
+            <div className="text-[11px] mt-1" style={{ color: T.sealDeep }}>صنف جديد كلياً — سيُضاف للمراجعة.</div>
+          )}
+          {matched && (
+            <div className="text-[11px] mt-1 flex items-center gap-1" style={{ color: T.good }}>
+              <CheckCircle2 size={11} /> منتج موجود مسبقاً باسم "{matched.name}" — سيُضاف سعرك فقط لنفس الصنف.
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الفئة</label>
+          <select value={form.category_id} onChange={set("category_id")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name_ar}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الكمية المتوفرة</label>
+          <input type="number" value={form.quantity} onChange={set("quantity")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر الجملة *</label>
+          <input type="number" step="0.01" value={form.wholesale_price} onChange={set("wholesale_price")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر التكلفة (اختياري)</label>
+          <input type="number" step="0.01" value={form.cost} onChange={set("cost")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر التجزئة (اختياري)</label>
+          <input type="number" step="0.01" value={form.retail_price} onChange={set("retail_price")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+        </div>
+
+        {err && <div className="col-span-2 text-xs" style={{ color: T.bad }}>{err}</div>}
+        {success && <div className="col-span-2 text-xs flex items-center gap-1.5" style={{ color: T.good }}><CheckCircle2 size={13} /> تمت إضافة المنتج بنجاح</div>}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="col-span-2 mt-1 text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2"
+          style={{ background: T.ink, color: "#fff" }}
+        >
+          {loading && <Loader2 size={14} className="animate-spin" />}
+          إضافة المنتج
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function ImportPanel({ session, categories, onImported }) {
   const [rows, setRows] = useState(null);
   const [fileName, setFileName] = useState("");
@@ -305,6 +472,7 @@ export default function TraderDashboard() {
   const [listings, setListings] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loadingListings, setLoadingListings] = useState(true);
+  const [addMethod, setAddMethod] = useState("manual");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -369,7 +537,27 @@ export default function TraderDashboard() {
       </header>
 
       <div className="p-6 md:p-10 max-w-4xl mx-auto flex flex-col gap-6">
-        <ImportPanel session={session} categories={categories} onImported={loadListings} />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setAddMethod("manual")}
+            className="text-xs font-medium px-4 py-2 rounded-lg"
+            style={{ background: addMethod === "manual" ? T.ink : "#fff", color: addMethod === "manual" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            إضافة منتج واحد
+          </button>
+          <button
+            onClick={() => setAddMethod("import")}
+            className="text-xs font-medium px-4 py-2 rounded-lg"
+            style={{ background: addMethod === "import" ? T.ink : "#fff", color: addMethod === "import" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            استيراد من ملف Excel
+          </button>
+        </div>
+        {addMethod === "manual" ? (
+          <ManualAddForm session={session} categories={categories} onAdded={loadListings} />
+        ) : (
+          <ImportPanel session={session} categories={categories} onImported={loadListings} />
+        )}
         <div>
           <div className="text-sm font-semibold mb-3" style={{ color: T.ink }}>منتجاتي ({listings.length})</div>
           <ListingsTable listings={listings} loading={loadingListings} />
