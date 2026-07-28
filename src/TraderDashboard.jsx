@@ -349,7 +349,10 @@ export default function TraderDashboard() {
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
-          <span className="font-semibold text-[15px]" style={{ color: T.ink }}>لوحة تحكم التاجر</span>
+          <div>
+            <div className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</div>
+            <div className="text-[11px]" style={{ color: T.sub }}>لوحة تحكم التاجر</div>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Link
