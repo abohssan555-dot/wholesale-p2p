@@ -48,7 +48,7 @@ const ROLES = [
 
 // أخبار مؤقتة — هتتحول لجدول حقيقي (news) لاحقاً
 const NEWS = [
-  { title: "انطلاق منصة الجملة رسمياً في المدينة المنورة", tag: "إطلاق" },
+  { title: "انطلاق أصناف الجملة رسمياً في المدينة المنورة", tag: "إطلاق" },
   { title: "برنامج نقاط الولاء لعملاء المؤسسات قريباً", tag: "قريباً" },
   { title: "إضافة قسم توصيل الخضار والفواكه الطازجة", tag: "تطوير" },
 ];
@@ -154,7 +154,7 @@ export default function Landing() {
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
-          <span className="font-semibold text-[15px]" style={{ color: T.ink }}>منصة الجملة</span>
+          <span className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</span>
         </div>
         <a
           href="/login"
@@ -249,7 +249,7 @@ export default function Landing() {
       </section>
 
       <footer className="px-6 md:px-10 py-6 text-center text-[11px]" style={{ color: T.sub, borderTop: `1px solid ${T.line}` }}>
-        منصة الجملة © 2026
+        أصناف الجملة © 2026
       </footer>
 
       {showPopup && <PopupBanner onClose={() => setShowPopup(false)} />}
