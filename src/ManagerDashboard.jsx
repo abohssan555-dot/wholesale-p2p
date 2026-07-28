@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
+import CatalogImportPanel from "./CatalogImportPanel.jsx";
 import {
   LayoutGrid,
   ShieldCheck,
@@ -17,6 +18,7 @@ import {
   X,
   ChevronLeft,
   Home,
+  Database,
   FileText,
   LogOut,
   Loader2,
@@ -92,6 +94,7 @@ const NAV = [
   { id: "overview", label: "نظرة عامة", icon: LayoutGrid },
   { id: "approvals", label: "طلبات الاعتماد", icon: ShieldCheck },
   { id: "accounts", label: "الحسابات والأدوار", icon: Users },
+  { id: "catalog", label: "الكتالوج المرجعي", icon: Database },
   { id: "audit", label: "سجل التدقيق", icon: ScrollText },
 ];
 
@@ -396,6 +399,7 @@ export default function ManagerDashboard() {
     overview: { title: "نظرة عامة", node: <Overview pendingCount={pendingCount} /> },
     approvals: { title: "طلبات الاعتماد", node: <Approvals requests={requests} loading={loading.requests} onDecide={decide} /> },
     accounts: { title: "الحسابات والأدوار", node: <Accounts accounts={accounts} loading={loading.accounts} /> },
+    catalog: { title: "الكتالوج المرجعي", node: <CatalogImportPanel session={session} /> },
     audit: { title: "سجل التدقيق", node: <Audit entries={audit} loading={loading.audit} /> },
   };
 
