@@ -546,7 +546,7 @@ export default function TraderDashboard() {
           <Store size={20} style={{ color: T.good }} />
           <div>
             <div className="text-sm font-semibold" style={{ color: T.ink }}>
-              أهلاً بك، متجر {profile?.store_name || "..."}
+              أهلاً بك، متجر {profile?.store_name || profile?.full_name || "التاجر"}
             </div>
             <div className="text-[11px]" style={{ color: T.sub }}>هذه لوحة التحكم الخاصة بمتجرك على منصة أصناف الجملة</div>
           </div>
