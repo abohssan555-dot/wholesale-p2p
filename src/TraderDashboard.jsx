@@ -506,6 +506,19 @@ export default function TraderDashboard() {
     setLoadingListings(false);
   }, [session]);
 
+  const [authorized, setAuthorized] = useState(null); // null = يتحقق، true/false = النتيجة
+
+  useEffect(() => {
+    if (!session) return;
+    supabase
+      .from("user_roles")
+      .select("role_id")
+      .eq("user_id", session.user.id)
+      .eq("role_id", "trader")
+      .maybeSingle()
+      .then(({ data }) => setAuthorized(!!data));
+  }, [session]);
+
   useEffect(() => {
     loadListings();
     supabase.from("product_categories").select("*").then(({ data }) => setCategories(data || []));
@@ -524,6 +537,15 @@ export default function TraderDashboard() {
   }
 
   if (!session) return <Navigate to="/login" replace />;
+
+  if (authorized === null) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center" style={{ background: T.paper }}>
+        <Loader2 className="animate-spin" style={{ color: T.sealDeep }} />
+      </div>
+    );
+  }
+  if (authorized === false) return <Navigate to="/login" replace />;
 
   return (
     <div dir="rtl" className="w-full min-h-screen" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper }}>
