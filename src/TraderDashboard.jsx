@@ -19,6 +19,16 @@ const T = {
   sub: "#5B5748",
 };
 
+const STORE_CATEGORY_LABELS = {
+  general_food: "مواد غذائية متكاملة",
+  sweets: "حلويات وشوكولاتة",
+  household_plastics: "مستلزمات منزلية وبلاستيكات",
+  produce: "خضار وفواكه",
+  bakery: "مخابز",
+  nuts_coffee: "محامص ومكسرات",
+  other: "أخرى",
+};
+
 function useFonts() {
   useEffect(() => {
     const link = document.createElement("link");
@@ -500,7 +510,7 @@ export default function TraderDashboard() {
     loadListings();
     supabase.from("product_categories").select("*").then(({ data }) => setCategories(data || []));
     if (session) {
-      supabase.from("profiles").select("store_name, full_name").eq("id", session.user.id).single()
+      supabase.from("profiles").select("store_name, full_name, store_category").eq("id", session.user.id).single()
         .then(({ data }) => setProfile(data));
     }
   }, [loadListings, session]);
@@ -546,9 +556,12 @@ export default function TraderDashboard() {
           <Store size={20} style={{ color: T.good }} />
           <div>
             <div className="text-sm font-semibold" style={{ color: T.ink }}>
-              أهلاً بك، متجر {profile?.store_name || profile?.full_name || "التاجر"}
+              أهلاً بك، {profile?.full_name || "تاجرنا الكريم"}
             </div>
-            <div className="text-[11px]" style={{ color: T.sub }}>هذه لوحة التحكم الخاصة بمتجرك على منصة أصناف الجملة</div>
+            <div className="text-[11px]" style={{ color: T.sub }}>
+              هذه لوحة التحكم الخاصة بمتجر <span className="font-bold" style={{ color: T.ink }}>{profile?.store_name || "متجرك"}</span>
+              {profile?.store_category ? ` (${STORE_CATEGORY_LABELS[profile.store_category] || ""})` : ""} على منصة أصناف الجملة
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
