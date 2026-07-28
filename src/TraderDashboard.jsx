@@ -185,7 +185,7 @@ function ManualAddForm({ session, categories, onAdded }) {
           <input value={form.name} onChange={set("name")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
         </div>
 
-        <div>
+        <div className="col-span-2">
           <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الباركود (اختياري)</label>
           <div className="flex gap-1.5">
             <input value={form.barcode} onChange={set("barcode")} className="flex-1 text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
