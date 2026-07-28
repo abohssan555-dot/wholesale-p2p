@@ -41,7 +41,7 @@ export const ROLE_ROUTES = {
   customer_support: "/admin",
   trader: "/trader/dashboard",
   business_customer: "/business/shop",
-  driver: "/driver/status",
+  driver: "/driver/dashboard",
   individual_customer: "/individual",
 };
 
