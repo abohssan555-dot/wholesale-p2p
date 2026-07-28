@@ -58,7 +58,7 @@ function Shell({ subtitle, children }) {
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
           <div className="text-center">
-            <div className="font-semibold text-[15px]" style={{ color: T.ink }}>منصة الجملة</div>
+            <div className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</div>
             <div className="text-[11px]" style={{ color: T.sub }}>{subtitle}</div>
           </div>
         </div>
