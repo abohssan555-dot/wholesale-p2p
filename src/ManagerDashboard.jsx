@@ -104,7 +104,7 @@ function Sidebar({ active, setActive, pendingCount, me, onLogout }) {
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
           <div>
-            <div className="font-semibold text-[15px] leading-tight">منصة الجملة</div>
+            <div className="font-semibold text-[15px] leading-tight">أصناف الجملة</div>
             <div className="text-[11px]" style={{ color: "#B9B4A2" }}>لوحة مدير الموقع</div>
           </div>
         </div>
@@ -405,7 +405,7 @@ export default function ManagerDashboard() {
       <main className="flex-1 h-full overflow-y-auto">
         <header className="px-8 py-5 flex items-center justify-between sticky top-0 z-10" style={{ background: T.paper, borderBottom: `1px solid ${T.line}` }}>
           <div className="flex items-center gap-2 text-sm" style={{ color: T.sub }}>
-            <span>منصة الجملة</span>
+            <span>أصناف الجملة</span>
             <ChevronLeft size={14} />
             <span style={{ color: T.ink, fontWeight: 600 }}>{PAGES[active].title}</span>
           </div>
