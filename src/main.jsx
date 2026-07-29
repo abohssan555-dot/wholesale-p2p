@@ -6,6 +6,7 @@ import OnboardingFlow from "./OnboardingFlow.jsx";
 import IndividualCustomer from "./IndividualCustomer.jsx";
 import Landing from "./Landing.jsx";
 import Login from "./Login.jsx";
+import ResetPassword from "./ResetPassword.jsx";
 import TraderDashboard from "./TraderDashboard.jsx";
 import ProductBrowse from "./ProductBrowse.jsx";
 import DriverDashboard from "./DriverDashboard.jsx";
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin" element={<ManagerDashboard />} />
         <Route
           path="/trader"
