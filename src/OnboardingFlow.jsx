@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "./supabaseClient.js";
+import { supabase, setRememberMe } from "./supabaseClient.js";
 import { Upload, FileText, Loader2, CheckCircle2, Clock, XCircle, Package, ArrowRight, Home } from "lucide-react";
 
 const T = {
@@ -168,6 +168,7 @@ function AccountStep({ onDone, applicantType }) {
     }
 
     setLoading(true);
+    setRememberMe(false); // التسجيل من هذي الشاشة لا يفترض "تذكرني" الدائم بصمت
     const meta = { full_name: form.full_name, phone: form.phone, city: form.city };
     if (applicantType === "driver") meta.vehicle_type = form.vehicle_type;
     if (applicantType === "trader") {
