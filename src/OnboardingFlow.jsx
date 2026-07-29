@@ -140,6 +140,7 @@ function AccountStep({ onDone, applicantType }) {
   const [form, setForm] = useState({
     store_name: "",
     store_category: "general_food",
+    business_name: "",
     full_name: "",
     email: "",
     password: "",
@@ -182,6 +183,9 @@ function AccountStep({ onDone, applicantType }) {
     if (applicantType === "trader") {
       meta.store_name = form.store_name;
       meta.store_category = form.store_category;
+    }
+    if (applicantType === "business_customer") {
+      meta.business_name = form.business_name;
     }
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
@@ -234,6 +238,9 @@ function AccountStep({ onDone, applicantType }) {
               </select>
             </div>
           </>
+        )}
+        {applicantType === "business_customer" && (
+          <Field label="اسم المؤسسة/المنشأة" required value={form.business_name} onChange={set("business_name")} />
         )}
         <Field label="رقم الجوال" required value={form.phone} onChange={set("phone")} placeholder="05xxxxxxxx" />
         <div className="mb-4">
