@@ -120,6 +120,7 @@ export default function DriverDashboard() {
   useFonts();
   useIdleLogout(30);
   const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(null);
   const [tab, setTab] = useState("available");
@@ -147,6 +148,8 @@ export default function DriverDashboard() {
       .eq("role_id", "driver")
       .maybeSingle()
       .then(({ data }) => setAuthorized(!!data));
+    supabase.from("profiles").select("full_name").eq("id", session.user.id).single()
+      .then(({ data }) => setProfile(data));
   }, [session]);
 
   const loadOrders = useCallback(async () => {
@@ -222,7 +225,9 @@ export default function DriverDashboard() {
           </div>
           <div>
             <div className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</div>
-            <div className="text-[11px]" style={{ color: T.sub }}>لوحة السائق</div>
+            <div className="text-[11px]" style={{ color: T.sub }}>
+              {profile?.full_name ? `حساب: ${profile.full_name}` : "لوحة السائق"}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
