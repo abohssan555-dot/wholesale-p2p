@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "./supabaseClient.js";
+import { supabase, setRememberMe } from "./supabaseClient.js";
 import { Package, Loader2, CheckCircle2, Mail, ArrowRight, Home } from "lucide-react";
 
 const T = {
@@ -105,6 +105,7 @@ export default function IndividualCustomer() {
     e.preventDefault();
     setErr("");
     setLoading(true);
+    setRememberMe(false); // نفس القاعدة: بدون خيار "تذكرني" ظاهر، الجلسة لا تُحفظ دائمة بصمت
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.origin + "/individual" },
