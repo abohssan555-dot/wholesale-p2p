@@ -63,6 +63,7 @@ function saveCart(items) {
 }
 
 function ProductRow({ listing, onAdd, inCart }) {
+  const [qty, setQty] = useState(1);
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
       <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: T.paperDeep }}>
@@ -71,7 +72,7 @@ function ProductRow({ listing, onAdd, inCart }) {
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold truncate" style={{ color: T.ink }}>{listing.product_catalog.name}</div>
         <div className="text-[11px] flex items-center gap-1 mt-0.5" style={{ color: T.sub }}>
-          <Store size={11} /> {listing.profiles?.store_name || "متجر"} · {listing.profiles?.city || ""}
+          <Store size={11} /> {listing.profiles?.store_name || "متجر غير مسمّى"} · {listing.profiles?.city || ""}
         </div>
       </div>
       <div className="text-left shrink-0">
@@ -80,8 +81,21 @@ function ProductRow({ listing, onAdd, inCart }) {
         </div>
         <div className="text-[10px]" style={{ color: T.sub }}>متوفر: {listing.quantity}</div>
       </div>
+
+      {listing.quantity > 0 && (
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-6 h-6 rounded flex items-center justify-center" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+            <Minus size={11} />
+          </button>
+          <span className="text-xs w-6 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{qty}</span>
+          <button onClick={() => setQty((q) => Math.min(listing.quantity, q + 1))} className="w-6 h-6 rounded flex items-center justify-center" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+            <Plus size={11} />
+          </button>
+        </div>
+      )}
+
       <button
-        onClick={() => onAdd(listing)}
+        onClick={() => onAdd(listing, qty)}
         disabled={listing.quantity <= 0}
         className="shrink-0 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1"
         style={{
@@ -100,6 +114,7 @@ function CartDrawer({ cart, setCart, onClose, session }) {
   const [placing, setPlacing] = useState(false);
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState(null);
+  const [vehicleType, setVehicleType] = useState("");
 
   const setQty = (key, qty) => {
     const updated = cart.map((c) => (c.key === key ? { ...c, quantity: Math.max(1, qty) } : c));
@@ -130,6 +145,7 @@ function CartDrawer({ cart, setCart, onClose, session }) {
       p_items: items,
       p_delivery_mode: "single_driver",
       p_delivery_city: session.city || null,
+      p_requested_vehicle_type: vehicleType || null,
     });
     setPlacing(false);
     if (error) {
@@ -197,6 +213,23 @@ function CartDrawer({ cart, setCart, onClose, session }) {
             ))}
 
             <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+              <label className="text-[11px] font-medium block mb-1" style={{ color: T.sub }}>نوع المركبة المفضّل للتوصيل (اختياري)</label>
+              <select
+                value={vehicleType}
+                onChange={(e) => setVehicleType(e.target.value)}
+                className="w-full text-xs rounded-lg py-2 px-2 outline-none"
+                style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+              >
+                <option value="">بدون تفضيل</option>
+                <option value="motorcycle">دراجة نارية</option>
+                <option value="small_car">سيارة صغيرة</option>
+                <option value="pickup">وانيت</option>
+                <option value="van">حافلة</option>
+                <option value="truck">دينا</option>
+              </select>
+            </div>
+
+            <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
               <div className="flex justify-between text-xs mb-1" style={{ color: T.sub }}>
                 <span>المجموع الفرعي</span>
                 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{subtotal.toFixed(2)} ر.س</span>
@@ -233,6 +266,72 @@ function CartDrawer({ cart, setCart, onClose, session }) {
   );
 }
 
+const ORDER_STATUS_LABELS = {
+  pending: "معلَّق",
+  confirmed: "قيد التنفيذ",
+  preparing: "قيد التحضير",
+  out_for_delivery: "بالطريق إليك",
+  delivered: "تم التسليم",
+  cancelled: "ملغى",
+};
+
+function MyOrdersTab({ session }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("orders")
+      .select("*, order_items(product_name, quantity, unit_price, trader_id)")
+      .eq("customer_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setOrders(data || []);
+        setLoading(false);
+      });
+  }, [session]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={18} style={{ color: T.sealDeep }} /></div>;
+  if (orders.length === 0) {
+    return (
+      <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>
+        لا توجد طلبات سابقة بعد.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {orders.map((o) => (
+        <div key={o.id} className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>
+              طلب #{o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleDateString("ar-SA")}
+            </span>
+            <span
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style={{
+                background: o.status === "delivered" ? T.goodBg : "#FBF1DD",
+                color: o.status === "delivered" ? T.good : T.sealDeep,
+              }}
+            >
+              {ORDER_STATUS_LABELS[o.status] || o.status}
+            </span>
+          </div>
+          <div className="text-[11px] mb-2" style={{ color: T.sub }}>
+            {(o.order_items || []).length} صنف · {[...new Set((o.order_items || []).map((i) => i.trader_id))].length} تاجر
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
+              {o.subtotal} ر.س
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ProductBrowse() {
   useFonts();
   useIdleLogout(30);
@@ -246,6 +345,15 @@ export default function ProductBrowse() {
   const [category, setCategory] = useState("");
   const [cart, setCart] = useState(loadCart());
   const [showCart, setShowCart] = useState(false);
+  const [tab, setTab] = useState("browse");
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    if (session) {
+      supabase.from("profiles").select("full_name").eq("id", session.user.id).single()
+        .then(({ data }) => setProfile(data));
+    }
+  }, [session]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -282,12 +390,12 @@ export default function ProductBrowse() {
     fetchPage(0, true);
   }, [category, search, fetchPage]);
 
-  const addToCart = (listing) => {
+  const addToCart = (listing, chosenQty = 1) => {
     const key = `${listing.trader_id}-${listing.catalog_id}`;
     const existing = cart.find((c) => c.key === key);
     let updated;
     if (existing) {
-      updated = cart.map((c) => (c.key === key ? { ...c, quantity: c.quantity + 1 } : c));
+      updated = cart.map((c) => (c.key === key ? { ...c, quantity: c.quantity + chosenQty } : c));
     } else {
       updated = [
         ...cart,
@@ -296,9 +404,9 @@ export default function ProductBrowse() {
           catalog_id: listing.catalog_id,
           trader_id: listing.trader_id,
           product_name: listing.product_catalog.name,
-          store_name: listing.profiles?.store_name || "متجر",
+          store_name: listing.profiles?.store_name || "متجر غير مسمّى",
           wholesale_price: listing.wholesale_price,
-          quantity: 1,
+          quantity: chosenQty,
         },
       ];
     }
@@ -326,7 +434,9 @@ export default function ProductBrowse() {
           </div>
           <div>
             <div className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</div>
-            <div className="text-[11px]" style={{ color: T.sub }}>تصفّح المنتجات</div>
+            <div className="text-[11px]" style={{ color: T.sub }}>
+              {profile?.full_name ? `حساب: ${profile.full_name}` : "تصفّح المنتجات"}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -348,6 +458,27 @@ export default function ProductBrowse() {
       </header>
 
       <div className="p-6 md:p-10 max-w-3xl mx-auto">
+        <div className="flex gap-2 mb-5">
+          <button
+            onClick={() => setTab("browse")}
+            className="flex-1 text-xs font-medium py-2.5 rounded-lg"
+            style={{ background: tab === "browse" ? T.ink : "#fff", color: tab === "browse" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            تصفّح المنتجات
+          </button>
+          <button
+            onClick={() => setTab("orders")}
+            className="flex-1 text-xs font-medium py-2.5 rounded-lg"
+            style={{ background: tab === "orders" ? T.ink : "#fff", color: tab === "orders" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            طلباتي
+          </button>
+        </div>
+
+        {tab === "orders" ? (
+          <MyOrdersTab session={session} />
+        ) : (
+        <>
         <div className="flex gap-2 mb-5">
           <div className="relative flex-1">
             <Search size={15} className="absolute top-1/2 -translate-y-1/2 right-3" style={{ color: T.sub }} />
@@ -395,6 +526,8 @@ export default function ProductBrowse() {
           >
             عرض المزيد
           </button>
+        )}
+        </>
         )}
       </div>
 
