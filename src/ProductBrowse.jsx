@@ -350,7 +350,7 @@ export default function ProductBrowse() {
 
   useEffect(() => {
     if (session) {
-      supabase.from("profiles").select("full_name").eq("id", session.user.id).single()
+      supabase.from("profiles").select("full_name, business_name").eq("id", session.user.id).single()
         .then(({ data }) => setProfile(data));
     }
   }, [session]);
@@ -435,7 +435,7 @@ export default function ProductBrowse() {
           <div>
             <div className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</div>
             <div className="text-[11px]" style={{ color: T.sub }}>
-              {profile?.full_name ? `حساب: ${profile.full_name}` : "تصفّح المنتجات"}
+              {profile?.full_name ? `أهلاً بك، ${profile.full_name}` : "تصفّح المنتجات"}
             </div>
           </div>
         </div>
@@ -458,6 +458,17 @@ export default function ProductBrowse() {
       </header>
 
       <div className="p-6 md:p-10 max-w-3xl mx-auto">
+        <div className="rounded-xl p-4 mb-5 flex items-center gap-3" style={{ background: T.goodBg, border: `1px solid #BFE0CE` }}>
+          <Package size={20} style={{ color: T.good }} />
+          <div>
+            <div className="text-sm font-semibold" style={{ color: T.ink }}>
+              أهلاً بك، {profile?.full_name || "..."}
+            </div>
+            <div className="text-[11px]" style={{ color: T.sub }}>
+              هذه لوحة التحكم الخاصة بالعميل <span className="font-bold" style={{ color: T.ink }}>{profile?.business_name || "..."}</span> على منصة أصناف الجملة
+            </div>
+          </div>
+        </div>
         <div className="flex gap-2 mb-5">
           <button
             onClick={() => setTab("browse")}
