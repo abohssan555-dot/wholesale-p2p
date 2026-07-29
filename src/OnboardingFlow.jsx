@@ -459,19 +459,39 @@ export default function OnboardingFlow({ applicantType, title, requiredDocs }) {
   const [session, setSession] = useState(null);
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState(0);
+  const [existingRequest, setExistingRequest] = useState(undefined); // undefined = لم يُفحص، null = لا يوجد، object = موجود
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setChecking(false);
-      if (data.session) setStep(1);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      if (s) setStep((prev) => (prev === 0 ? 1 : prev));
-    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // لما تصير جلسة، نتأكد هل هذا الحساب أصلاً قدّم طلب "بنفس نوع الدور" هذا
+  // من قبل — بدل ما نفترض "فيه جلسة إذن كمّل من خطوة المستندات"، لأن
+  // نفس الحساب ممكن يكون مسجّل دخول من اختبار دور مختلف تماماً
+  useEffect(() => {
+    if (!session) {
+      setExistingRequest(undefined);
+      return;
+    }
+    supabase
+      .from("verification_requests")
+      .select("*")
+      .eq("applicant_id", session.user.id)
+      .eq("applicant_type", applicantType)
+      .order("submitted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        setExistingRequest(data || null);
+        if (data) setStep(2); // له طلب سابق بنفس الدور — روح مباشرة لحالة المتابعة
+        else setStep((prev) => (prev === 0 ? 1 : prev)); // جلسة موجودة وما له طلب سابق — كمّل رفع المستندات بنفس الحساب
+      });
+  }, [session, applicantType]);
 
   if (checking) {
     return (
@@ -488,7 +508,24 @@ export default function OnboardingFlow({ applicantType, title, requiredDocs }) {
       <Steps step={step} />
       {step === 0 && <AccountStep onDone={() => setStep(1)} applicantType={applicantType} />}
       {step === 1 && session && (
-        <DocumentsStep session={session} applicantType={applicantType} requiredDocs={requiredDocs} onDone={() => setStep(2)} />
+        <>
+          {existingRequest === null && (
+            <div
+              className="rounded-lg p-3 mb-3 flex items-center justify-between gap-2 text-xs"
+              style={{ background: "#FBF1DD", color: T.sealDeep }}
+            >
+              <span>أنت مسجّل دخول حالياً بحساب: {session.user.email}. المستندات ستُرفع لهذا الحساب.</span>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="font-medium underline shrink-0"
+                style={{ color: T.sealDeep }}
+              >
+                تسجيل حساب آخر
+              </button>
+            </div>
+          )}
+          <DocumentsStep session={session} applicantType={applicantType} requiredDocs={requiredDocs} onDone={() => setStep(2)} />
+        </>
       )}
       {step === 2 && session && <StatusStep session={session} />}
       {step >= 1 && !session && (
