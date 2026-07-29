@@ -30,6 +30,82 @@ function pick(row, keys) {
   return null;
 }
 
+function PendingCatalogReview() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    supabase
+      .from("product_catalog")
+      .select("id, name, barcode, created_at, profiles!created_by(store_name, full_name)")
+      .eq("status", "pending_review")
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .then(({ data }) => {
+        setItems(data || []);
+        setLoading(false);
+      });
+  };
+
+  React.useEffect(load, []);
+
+  const decide = async (id, status) => {
+    setBusyId(id);
+    await supabase.from("product_catalog").update({ status }).eq("id", id);
+    setBusyId(null);
+    load();
+  };
+
+  return (
+    <div className="rounded-xl p-6 mt-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+      <div className="flex items-center gap-2 mb-1">
+        <Database size={16} style={{ color: T.sealDeep }} />
+        <span className="text-sm font-semibold" style={{ color: T.ink }}>منتجات قيد المراجعة ({items.length})</span>
+      </div>
+      <div className="text-xs mb-4" style={{ color: T.sub }}>
+        أصناف جديدة كلياً أضافها التجّار (بدون باركود مطابق) — تحتاج تأكيد أنها مو تكرار لصنف موجود باسم مختلف.
+      </div>
+
+      {loading ? (
+        <div className="text-xs text-center py-6" style={{ color: T.sub }}>جارٍ التحميل...</div>
+      ) : items.length === 0 ? (
+        <div className="text-xs text-center py-6" style={{ color: T.sub }}>لا توجد منتجات بانتظار المراجعة حالياً.</div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {items.map((it) => (
+            <div key={it.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium" style={{ color: T.ink }}>{it.name}</div>
+                <div className="text-[11px]" style={{ color: T.sub }}>
+                  {it.profiles?.store_name || it.profiles?.full_name || "—"} · {it.barcode ? `باركود: ${it.barcode}` : "بدون باركود"}
+                </div>
+              </div>
+              <button
+                onClick={() => decide(it.id, "rejected")}
+                disabled={busyId === it.id}
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: T.badBg, color: T.bad }}
+              >
+                <AlertTriangle size={14} />
+              </button>
+              <button
+                onClick={() => decide(it.id, "approved")}
+                disabled={busyId === it.id}
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: T.goodBg, color: T.good }}
+              >
+                <CheckCircle2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CatalogImportPanel({ session }) {
   const [rows, setRows] = useState(null);
   const [fileName, setFileName] = useState("");
@@ -114,6 +190,7 @@ export default function CatalogImportPanel({ session }) {
 
   if (result) {
     return (
+      <>
       <div className="rounded-xl p-6" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
         <CheckCircle2 className="mb-3" size={26} style={{ color: T.good }} />
         <div className="text-sm font-semibold mb-1" style={{ color: T.ink }}>تم استيراد الكتالوج المرجعي</div>
@@ -128,10 +205,13 @@ export default function CatalogImportPanel({ session }) {
           استيراد ملف آخر
         </button>
       </div>
+      <PendingCatalogReview />
+      </>
     );
   }
 
   return (
+    <>
     <div className="rounded-xl p-6" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
       <div className="flex items-center gap-2 mb-1">
         <Database size={16} style={{ color: T.sealDeep }} />
@@ -191,5 +271,7 @@ export default function CatalogImportPanel({ session }) {
         </div>
       )}
     </div>
+    <PendingCatalogReview />
+    </>
   );
 }
