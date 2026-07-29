@@ -182,7 +182,10 @@ function AccountStep({ onDone, applicantType }) {
     });
     setLoading(false);
     if (error) {
-      setErr(error.message.includes("already registered") ? "البريد مسجّل مسبقاً." : "تعذّر إنشاء الحساب، تأكد من البيانات.");
+      let msg = "تعذّر إنشاء الحساب، تأكد من البيانات.";
+      if (error.message.includes("already registered")) msg = "البريد مسجّل مسبقاً.";
+      else if (error.message.toLowerCase().includes("phone")) msg = "رقم الجوال هذا مستخدم بحساب آخر مسبقاً — كل رقم جوال يجب أن يرتبط بحساب واحد فقط.";
+      setErr(msg);
       return;
     }
     if (!data.session) {
