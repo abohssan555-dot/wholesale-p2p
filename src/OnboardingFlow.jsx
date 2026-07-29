@@ -168,6 +168,14 @@ function AccountStep({ onDone, applicantType }) {
     }
 
     setLoading(true);
+
+    const { data: phoneAvailable } = await supabase.rpc("is_phone_available", { p_phone: form.phone });
+    if (phoneAvailable === false) {
+      setLoading(false);
+      setErr("رقم الجوال هذا مستخدم بحساب آخر مسبقاً — كل رقم جوال يجب أن يرتبط بحساب واحد فقط.");
+      return;
+    }
+
     setRememberMe(false); // التسجيل من هذي الشاشة لا يفترض "تذكرني" الدائم بصمت
     const meta = { full_name: form.full_name, phone: form.phone, city: form.city };
     if (applicantType === "driver") meta.vehicle_type = form.vehicle_type;
@@ -182,10 +190,7 @@ function AccountStep({ onDone, applicantType }) {
     });
     setLoading(false);
     if (error) {
-      let msg = "تعذّر إنشاء الحساب، تأكد من البيانات.";
-      if (error.message.includes("already registered")) msg = "البريد مسجّل مسبقاً.";
-      else if (error.message.toLowerCase().includes("phone")) msg = "رقم الجوال هذا مستخدم بحساب آخر مسبقاً — كل رقم جوال يجب أن يرتبط بحساب واحد فقط.";
-      setErr(msg);
+      setErr(error.message.includes("already registered") ? "البريد مسجّل مسبقاً." : "تعذّر إنشاء الحساب، تأكد من البيانات.");
       return;
     }
     if (!data.session) {
