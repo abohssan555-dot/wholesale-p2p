@@ -17,7 +17,7 @@ export default function Login() {
   const [role, setRole] = useState("admin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
