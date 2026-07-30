@@ -102,7 +102,7 @@ function Sidebar({ active, setActive, pendingCount, me, onLogout }) {
   return (
     <aside className="w-64 shrink-0 h-full flex flex-col" style={{ background: T.ink, color: "#F1EEE4" }}>
       <div className="px-6 pt-7 pb-6" style={{ borderBottom: `1px solid rgba(246,243,236,0.12)` }}>
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2" style={{ textDecoration: "none", color: "inherit" }} title="الصفحة الرئيسية">
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
@@ -110,7 +110,7 @@ function Sidebar({ active, setActive, pendingCount, me, onLogout }) {
             <div className="font-semibold text-[15px] leading-tight">أصناف الجملة</div>
             <div className="text-[11px]" style={{ color: "#B9B4A2" }}>لوحة مدير الموقع</div>
           </div>
-        </div>
+        </Link>
       </div>
 
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
@@ -413,13 +413,6 @@ export default function ManagerDashboard() {
             <ChevronLeft size={14} />
             <span style={{ color: T.ink, fontWeight: 600 }}>{PAGES[active].title}</span>
           </div>
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg"
-            style={{ color: T.sub, border: `1px solid ${T.line}`, textDecoration: "none" }}
-          >
-            <Home size={13} /> الصفحة الرئيسية
-          </Link>
         </header>
         <div className="p-8">{PAGES[active].node}</div>
       </main>
