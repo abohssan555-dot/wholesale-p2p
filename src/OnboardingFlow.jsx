@@ -271,7 +271,7 @@ function AccountStep({ onDone, applicantType }) {
             </select>
           </div>
         )}
-        <Field label="البريد الإلكتروني" type="email" required value={form.email} onChange={set("email")} />
+        <Field label="البريد الإلكتروني" type="email" name="email" autoComplete="email" required value={form.email} onChange={set("email")} />
         <Field label="اسم صاحب الحساب" required value={form.full_name} onChange={set("full_name")} />
         <Field label="كلمة المرور" type="password" required value={form.password} onChange={set("password")} />
         <Field label="تأكيد كلمة المرور" type="password" required value={form.confirm_password} onChange={set("confirm_password")} />
