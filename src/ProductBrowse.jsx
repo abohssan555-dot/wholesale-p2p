@@ -116,6 +116,7 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
   const [success, setSuccess] = useState(null);
   const [vehicleType, setVehicleType] = useState("");
   const [deliverySpeed, setDeliverySpeed] = useState("standard");
+  const [zone, setZone] = useState("inside_city");
 
   const setQty = (key, qty) => {
     const updated = cart.map((c) => (c.key === key ? { ...c, quantity: Math.max(1, qty) } : c));
@@ -138,13 +139,25 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
   const traderCount = Object.keys(byTrader).length;
   const SIZE_WEIGHT = { light: 1, medium: 2, bulky: 4 };
   const totalLoadUnits = cart.reduce((s, c) => s + (SIZE_WEIGHT[c.shipping_size] || 2) * c.quantity, 0);
+
   const feeTier = (() => {
-    if (totalLoadUnits <= 6) return { base: 15, vehicle: "دراجة نارية" };
-    if (totalLoadUnits <= 18) return { base: 25, vehicle: "سيارة صغيرة" };
-    if (totalLoadUnits <= 35) return { base: 35, vehicle: "وانيت" };
-    if (totalLoadUnits <= 70) return { base: 50, vehicle: "حافلة" };
-    return { base: 80, vehicle: "دينا" };
+    let tier = totalLoadUnits <= 18 && zone === "inside_city" ? "small_car"
+      : totalLoadUnits <= 35 ? "pickup"
+      : totalLoadUnits <= 70 ? "van"
+      : "truck";
+    if (zone === "outside_city" && tier === "small_car") tier = "pickup";
+    const PRICES = {
+      small_car: { inside_city: 30 },
+      pickup: { inside_city: 50, outside_city: 100 },
+      van: { inside_city: 80, outside_city: 150 },
+      truck: { inside_city: 100, outside_city: 200 },
+    };
+    const LABELS = { small_car: "سيارة صغيرة", pickup: "وانيت", van: "حافلة", truck: "دينا" };
+    return { base: PRICES[tier][zone] ?? PRICES[tier].inside_city, vehicle: LABELS[tier] };
   })();
+
+  // خارج المدينة: توصيل سريع منفرد إجباري، ما يُتاح خيار "عادي" أصلاً
+  const effectiveSpeed = zone === "outside_city" ? "express" : deliverySpeed;
   const deliveryFee = traderCount === 0 ? 0 : feeTier.base + Math.max(traderCount - 1, 0) * 10;
 
   const checkout = async () => {
@@ -156,7 +169,8 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
       p_delivery_mode: "single_driver",
       p_delivery_city: city || null,
       p_requested_vehicle_type: vehicleType || null,
-      p_delivery_speed: deliverySpeed,
+      p_delivery_speed: effectiveSpeed,
+      p_zone: zone,
     });
     setPlacing(false);
     if (error) {
@@ -224,23 +238,49 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
             ))}
 
             <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-              <label className="text-[11px] font-medium block mb-1.5" style={{ color: T.sub }}>سرعة التوصيل</label>
+              <label className="text-[11px] font-medium block mb-1.5" style={{ color: T.sub }}>منطقة التوصيل</label>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setDeliverySpeed("standard")}
+                  onClick={() => setZone("inside_city")}
                   className="flex-1 text-xs font-medium py-2 rounded-lg"
-                  style={{ background: deliverySpeed === "standard" ? T.ink : T.paper, color: deliverySpeed === "standard" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+                  style={{ background: zone === "inside_city" ? T.ink : T.paper, color: zone === "inside_city" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
                 >
-                  عادي (قد يُجمَّع مع طلبات أخرى)
+                  داخل المدينة
                 </button>
                 <button
-                  onClick={() => setDeliverySpeed("express")}
+                  onClick={() => setZone("outside_city")}
                   className="flex-1 text-xs font-medium py-2 rounded-lg"
-                  style={{ background: deliverySpeed === "express" ? T.ink : T.paper, color: deliverySpeed === "express" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+                  style={{ background: zone === "outside_city" ? T.ink : T.paper, color: zone === "outside_city" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
                 >
-                  سريع (توصيل منفرد فقط)
+                  خارج المدينة
                 </button>
               </div>
+            </div>
+
+            <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+              <label className="text-[11px] font-medium block mb-1.5" style={{ color: T.sub }}>سرعة التوصيل</label>
+              {zone === "outside_city" ? (
+                <div className="text-xs px-3 py-2 rounded-lg" style={{ background: "#FBF1DD", color: T.sealDeep }}>
+                  الطلبات خارج المدينة تُوصَّل توصيلاً سريعاً منفرداً إلزامياً (بدون تجميع مع طلبات أخرى)
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDeliverySpeed("standard")}
+                    className="flex-1 text-xs font-medium py-2 rounded-lg"
+                    style={{ background: deliverySpeed === "standard" ? T.ink : T.paper, color: deliverySpeed === "standard" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+                  >
+                    عادي (قد يُجمَّع مع طلبات أخرى)
+                  </button>
+                  <button
+                    onClick={() => setDeliverySpeed("express")}
+                    className="flex-1 text-xs font-medium py-2 rounded-lg"
+                    style={{ background: deliverySpeed === "express" ? T.ink : T.paper, color: deliverySpeed === "express" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+                  >
+                    سريع (توصيل منفرد فقط)
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
@@ -252,8 +292,7 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
                 style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
               >
                 <option value="">بدون تفضيل</option>
-                <option value="motorcycle">دراجة نارية</option>
-                <option value="small_car">سيارة صغيرة</option>
+                {zone === "inside_city" && <option value="small_car">سيارة صغيرة</option>}
                 <option value="pickup">وانيت</option>
                 <option value="van">حافلة</option>
                 <option value="truck">دينا</option>
