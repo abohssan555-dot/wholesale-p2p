@@ -456,7 +456,7 @@ export default function ProductBrowse() {
   return (
     <div dir="rtl" className="w-full min-h-screen" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper }}>
       <header className="px-6 md:px-10 py-4 flex items-center justify-between sticky top-0 z-20" style={{ background: T.paper, borderBottom: `1px solid ${T.line}` }}>
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2" style={{ textDecoration: "none" }} title="الصفحة الرئيسية">
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
@@ -466,11 +466,8 @@ export default function ProductBrowse() {
               {profile?.full_name ? `أهلاً بك، ${profile.full_name}` : "تصفّح المنتجات"}
             </div>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg" style={{ color: T.sub, border: `1px solid ${T.line}`, textDecoration: "none" }}>
-            <Home size={13} /> الرئيسية
-          </Link>
           <button onClick={() => setShowCart(true)} className="relative flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
             <ShoppingCart size={13} /> السلة
             {cartCount > 0 && (
