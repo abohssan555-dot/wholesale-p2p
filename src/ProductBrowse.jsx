@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
 import {
   Package, Search, ShoppingCart, Plus, Minus, X, Loader2,
-  Store, LogOut, Home, CheckCircle2, AlertTriangle,
+  Store, LogOut, Home, CheckCircle2, AlertTriangle, Wallet,
 } from "lucide-react";
 
 const T = {
@@ -360,6 +360,76 @@ function MyOrdersTab({ session }) {
   );
 }
 
+function CustomerWalletDrawer({ session, balance, onClose }) {
+  const [orders, setOrders] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("orders").select("id, subtotal, status, created_at").eq("customer_id", session.user.id).eq("status", "delivered").order("created_at", { ascending: false }),
+      supabase.from("wallet_transactions").select("*").eq("customer_id", session.user.id).order("created_at", { ascending: false }),
+    ]).then(([o, t]) => {
+      setOrders(o.data || []);
+      setTransactions(t.data || []);
+      setLoading(false);
+    });
+  }, [session]);
+
+  const totalSpent = orders.reduce((s, o) => s + Number(o.subtotal), 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(20,33,59,0.4)" }} onClick={onClose}>
+      <div className="w-full max-w-sm h-full overflow-y-auto p-5" style={{ background: T.paper }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-semibold flex items-center gap-1.5" style={{ color: T.good }}><Wallet size={15} /> محفظتي</span>
+          <button onClick={onClose}><X size={18} style={{ color: T.sub }} /></button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={18} style={{ color: T.sealDeep }} /></div>
+        ) : (
+          <>
+            <div className="rounded-xl p-4 mb-4" style={{ background: T.goodBg, border: "1px solid #BFE0CE" }}>
+              <div className="text-[11px]" style={{ color: T.good }}>الرصيد الدائن الحالي</div>
+              <div className="text-2xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.good }}>
+                {balance || 0} <span className="text-xs font-normal">ر.س</span>
+              </div>
+              <div className="text-[10px] mt-1" style={{ color: T.good }}>يُستخدم من مرتجعات أو تعويضات، يعتمده المدير أو المشرف المالي</div>
+            </div>
+
+            <div className="rounded-xl p-4 mb-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+              <div className="text-[11px]" style={{ color: T.sub }}>إجمالي ما دفعته (طلبات مكتملة)</div>
+              <div className="text-xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
+                {totalSpent.toFixed(2)} <span className="text-xs font-normal" style={{ color: T.sub }}>ر.س</span>
+              </div>
+            </div>
+
+            {transactions.length > 0 && (
+              <div>
+                <div className="text-xs font-medium mb-2" style={{ color: T.ink }}>حركات الرصيد</div>
+                <div className="flex flex-col gap-2">
+                  {transactions.map((t) => (
+                    <div key={t.id} className="rounded-lg p-3 flex items-center justify-between" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+                      <div>
+                        <div className="text-xs" style={{ color: T.ink }}>{t.reason}</div>
+                        <div className="text-[10px]" style={{ color: T.sub }}>{new Date(t.created_at).toLocaleDateString("ar-SA")}</div>
+                      </div>
+                      <span className="text-xs font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: t.amount >= 0 ? T.good : T.bad }}>
+                        {t.amount >= 0 ? "+" : ""}{t.amount} ر.س
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ProductBrowse() {
   useFonts();
   useIdleLogout(30);
@@ -375,10 +445,11 @@ export default function ProductBrowse() {
   const [showCart, setShowCart] = useState(false);
   const [tab, setTab] = useState("browse");
   const [profile, setProfile] = useState(null);
+  const [showWallet, setShowWallet] = useState(false);
 
   useEffect(() => {
     if (session) {
-      supabase.from("profiles").select("full_name, business_name, city").eq("id", session.user.id).single()
+      supabase.from("profiles").select("full_name, business_name, city, wallet_balance").eq("id", session.user.id).single()
         .then(({ data }) => setProfile(data));
     }
   }, [session]);
@@ -468,6 +539,12 @@ export default function ProductBrowse() {
           </div>
         </Link>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowWallet(true)} className="relative flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.goodBg, color: T.good, border: `1px solid #BFE0CE` }}>
+            <Wallet size={13} /> محفظتي
+            {profile?.wallet_balance > 0 && (
+              <span className="text-[10px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>({profile.wallet_balance} ر.س)</span>
+            )}
+          </button>
           <button onClick={() => setShowCart(true)} className="relative flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
             <ShoppingCart size={13} /> السلة
             {cartCount > 0 && (
@@ -568,6 +645,7 @@ export default function ProductBrowse() {
       </div>
 
       {showCart && <CartDrawer cart={cart} setCart={setCart} onClose={() => setShowCart(false)} session={session.user} city={profile?.city} />}
+      {showWallet && <CustomerWalletDrawer session={session} balance={profile?.wallet_balance} onClose={() => setShowWallet(false)} />}
     </div>
   );
 }
