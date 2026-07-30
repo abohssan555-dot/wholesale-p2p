@@ -474,6 +474,85 @@ function ListingsTable({ listings, loading }) {
   );
 }
 
+function WalletPanel({ session }) {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("trader_invoices")
+      .select("*")
+      .eq("trader_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setInvoices(data || []);
+        setLoading(false);
+      });
+  }, [session]);
+
+  if (loading) return <div className="text-sm text-center py-10" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+
+  const pending = invoices.filter((i) => i.status === "pending");
+  const settled = invoices.filter((i) => i.status === "settled");
+  const pendingTotal = pending.reduce((s, i) => s + Number(i.net_payable), 0);
+  const settledTotal = settled.reduce((s, i) => s + Number(i.net_payable), 0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+          <div className="text-[11px]" style={{ color: T.sub }}>مستحق قيد التحويل</div>
+          <div className="text-xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sealDeep }}>
+            {pendingTotal.toFixed(2)} <span className="text-xs font-normal">ر.س</span>
+          </div>
+        </div>
+        <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+          <div className="text-[11px]" style={{ color: T.sub }}>تم تحويله سابقاً</div>
+          <div className="text-xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.good }}>
+            {settledTotal.toFixed(2)} <span className="text-xs font-normal">ر.س</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: T.paper, color: T.sub }}>
+              <th className="text-start font-medium px-4 py-3">التاريخ</th>
+              <th className="text-start font-medium px-4 py-3">إجمالي الطلب</th>
+              <th className="text-start font-medium px-4 py-3">العمولة</th>
+              <th className="text-start font-medium px-4 py-3">صافي المستحق</th>
+              <th className="text-start font-medium px-4 py-3">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoices.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-6 text-sm text-center" style={{ color: T.sub }}>لا توجد فواتير بعد.</td></tr>
+            ) : invoices.map((inv, i) => (
+              <tr key={inv.id} style={{ borderTop: i ? `1px solid ${T.line}` : "none" }}>
+                <td className="px-4 py-3" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
+                  {new Date(inv.created_at).toLocaleDateString("ar-SA")}
+                </td>
+                <td className="px-4 py-3" style={{ color: T.ink, fontFamily: "'JetBrains Mono', monospace" }}>{inv.subtotal} ر.س</td>
+                <td className="px-4 py-3" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>{inv.commission_amount} ر.س ({inv.commission_rate}%)</td>
+                <td className="px-4 py-3 font-medium" style={{ color: T.ink, fontFamily: "'JetBrains Mono', monospace" }}>{inv.net_payable} ر.س</td>
+                <td className="px-4 py-3">
+                  <span
+                    className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                    style={inv.status === "settled" ? { background: T.goodBg, color: T.good } : { background: "#FBF1DD", color: T.sealDeep }}
+                  >
+                    {inv.status === "settled" ? "تم التحويل" : "قيد الانتظار"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function TraderDashboard() {
   useFonts();
   useIdleLogout(30);
@@ -484,6 +563,7 @@ export default function TraderDashboard() {
   const [profile, setProfile] = useState(null);
   const [loadingListings, setLoadingListings] = useState(true);
   const [addMethod, setAddMethod] = useState("manual");
+  const [view, setView] = useState("products");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -579,6 +659,27 @@ export default function TraderDashboard() {
             </div>
           </div>
         </div>
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => setView("products")}
+            className="flex-1 text-xs font-medium py-2.5 rounded-lg"
+            style={{ background: view === "products" ? T.ink : "#fff", color: view === "products" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            المنتجات
+          </button>
+          <button
+            onClick={() => setView("wallet")}
+            className="flex-1 text-xs font-medium py-2.5 rounded-lg"
+            style={{ background: view === "wallet" ? T.ink : "#fff", color: view === "wallet" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            المحفظة
+          </button>
+        </div>
+
+        {view === "wallet" ? (
+          <WalletPanel session={session} />
+        ) : (
+        <>
         <div className="flex gap-2">
           <button
             onClick={() => setAddMethod("manual")}
@@ -604,6 +705,8 @@ export default function TraderDashboard() {
           <div className="text-sm font-semibold mb-3" style={{ color: T.ink }}>منتجاتي ({listings.length})</div>
           <ListingsTable listings={listings} loading={loadingListings} />
         </div>
+        </>
+        )}
       </div>
     </div>
   );
