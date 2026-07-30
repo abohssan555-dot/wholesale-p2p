@@ -416,10 +416,12 @@ function CustomerWalletDrawer({ session, balance, onClose }) {
   const [orders, setOrders] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+  const [itemsCache, setItemsCache] = useState({});
 
   useEffect(() => {
     Promise.all([
-      supabase.from("orders").select("id, subtotal, status, created_at").eq("customer_id", session.user.id).eq("status", "delivered").order("created_at", { ascending: false }),
+      supabase.from("orders").select("id, subtotal, delivery_fee, total, status, created_at").eq("customer_id", session.user.id).eq("status", "delivered").order("created_at", { ascending: false }),
       supabase.from("wallet_transactions").select("*").eq("customer_id", session.user.id).order("created_at", { ascending: false }),
     ]).then(([o, t]) => {
       setOrders(o.data || []);
@@ -428,7 +430,22 @@ function CustomerWalletDrawer({ session, balance, onClose }) {
     });
   }, [session]);
 
-  const totalSpent = orders.reduce((s, o) => s + Number(o.subtotal), 0);
+  const toggleExpand = async (orderId) => {
+    if (expanded === orderId) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(orderId);
+    if (!itemsCache[orderId]) {
+      const { data } = await supabase
+        .from("order_items")
+        .select("trader_id, product_name, quantity, line_total, profiles!trader_id(store_name)")
+        .eq("order_id", orderId);
+      setItemsCache((c) => ({ ...c, [orderId]: data || [] }));
+    }
+  };
+
+  const totalSpent = orders.reduce((s, o) => s + Number(o.total ?? o.subtotal), 0);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(20,33,59,0.4)" }} onClick={onClose}>
@@ -456,6 +473,51 @@ function CustomerWalletDrawer({ session, balance, onClose }) {
                 {totalSpent.toFixed(2)} <span className="text-xs font-normal" style={{ color: T.sub }}>ر.س</span>
               </div>
             </div>
+
+            {orders.length > 0 && (
+              <div className="mb-4">
+                <div className="text-xs font-medium mb-2" style={{ color: T.ink }}>طلباتي السابقة (تفصيل حسب التاجر)</div>
+                <div className="flex flex-col gap-2">
+                  {orders.map((o) => (
+                    <div key={o.id} className="rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+                      <button onClick={() => toggleExpand(o.id)} className="w-full flex items-center gap-3 p-3 text-right">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium" style={{ color: T.ink, fontFamily: "'JetBrains Mono', monospace" }}>
+                            طلب #{o.id.slice(0, 8)}
+                          </div>
+                          <div className="text-[10px]" style={{ color: T.sub }}>{new Date(o.created_at).toLocaleDateString("ar-SA")}</div>
+                        </div>
+                        <span className="text-xs font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
+                          {(o.total ?? o.subtotal)} ر.س
+                        </span>
+                      </button>
+                      {expanded === o.id && (
+                        <div className="px-3 pb-3" style={{ borderTop: `1px solid ${T.line}` }}>
+                          <div className="text-[10px] pt-2 pb-1" style={{ color: T.sub }}>
+                            المنتجات: {o.subtotal} ر.س + التوصيل: {o.delivery_fee} ر.س
+                          </div>
+                          {(() => {
+                            const items = itemsCache[o.id] || [];
+                            const byTraderMap = items.reduce((acc, it) => {
+                              const name = it.profiles?.store_name || "متجر";
+                              (acc[name] ||= 0);
+                              acc[name] += Number(it.line_total);
+                              return acc;
+                            }, {});
+                            return Object.entries(byTraderMap).map(([name, amount]) => (
+                              <div key={name} className="flex items-center justify-between text-xs py-1" style={{ color: T.ink }}>
+                                <span className="flex items-center gap-1"><Store size={11} style={{ color: T.sealDeep }} /> {name}</span>
+                                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sub }}>{amount.toFixed(2)} ر.س</span>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {transactions.length > 0 && (
               <div>
