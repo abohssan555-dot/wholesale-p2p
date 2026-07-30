@@ -546,7 +546,7 @@ function WalletPanel({ session }) {
                   <span style={{ color: T.sub, fontWeight: 400, fontSize: 11 }}>{new Date(inv.created_at).toLocaleDateString("ar-SA")}</span>
                 </div>
                 <div className="text-[11px] mt-1" style={{ color: T.sub }}>
-                  هذه الفاتورة تجمع كل منتجاتك ضمن هذا الطلب (قد يحتوي الطلب منتجات من تجّار آخرين أيضاً، تُفوتَر لهم منفصلة)
+                  هذه الفاتورة تخص منتجاتك فقط ضمن هذا الطلب
                 </div>
               </div>
               <div className="text-left shrink-0">
