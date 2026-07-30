@@ -136,7 +136,16 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
 
   const subtotal = cart.reduce((s, c) => s + c.wholesale_price * c.quantity, 0);
   const traderCount = Object.keys(byTrader).length;
-  const deliveryFee = traderCount === 0 ? 0 : 15 + (traderCount - 1) * 8; // تقديري مبدئي، سيُستبدل بمحرك رسوم فعلي لاحقاً
+  const SIZE_WEIGHT = { light: 1, medium: 2, bulky: 4 };
+  const totalLoadUnits = cart.reduce((s, c) => s + (SIZE_WEIGHT[c.shipping_size] || 2) * c.quantity, 0);
+  const feeTier = (() => {
+    if (totalLoadUnits <= 6) return { base: 15, vehicle: "دراجة نارية" };
+    if (totalLoadUnits <= 18) return { base: 25, vehicle: "سيارة صغيرة" };
+    if (totalLoadUnits <= 35) return { base: 35, vehicle: "وانيت" };
+    if (totalLoadUnits <= 70) return { base: 50, vehicle: "حافلة" };
+    return { base: 80, vehicle: "دينا" };
+  })();
+  const deliveryFee = traderCount === 0 ? 0 : feeTier.base + Math.max(traderCount - 1, 0) * 10;
 
   const checkout = async () => {
     setErr("");
@@ -257,7 +266,7 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
                 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{subtotal.toFixed(2)} ر.س</span>
               </div>
               <div className="flex justify-between text-xs mb-1" style={{ color: T.sub }}>
-                <span>رسوم التوصيل (تقديرية — {traderCount} تاجر)</span>
+                <span>رسوم التوصيل (تقديرية — يحتاج {feeTier.vehicle} تقريباً)</span>
                 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{deliveryFee} ر.س</span>
               </div>
               <div className="flex justify-between text-sm font-semibold pt-2 mt-2" style={{ borderTop: `1px solid ${T.line}`, color: T.ink }}>
@@ -349,9 +358,13 @@ function MyOrdersTab({ session }) {
               <span className="text-base font-bold" style={{ color: T.sealDeep, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.2em" }}>{o.delivery_pin}</span>
             </div>
           )}
+          <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: T.sub }}>
+            <span>المنتجات: {o.subtotal} ر.س</span>
+            <span>التوصيل: {o.delivery_fee} ر.س</span>
+          </div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
-              {o.subtotal} ر.س
+              الإجمالي: {o.total} ر.س
             </span>
           </div>
         </div>
@@ -467,7 +480,7 @@ export default function ProductBrowse() {
     setLoading(true);
     let query = supabase
       .from("trader_listings")
-      .select("id, quantity, wholesale_price, trader_id, catalog_id, product_catalog!inner(name, category_id, status), profiles!trader_id(store_name, city)")
+      .select("id, quantity, wholesale_price, trader_id, catalog_id, product_catalog!inner(name, category_id, status, shipping_size), profiles!trader_id(store_name, city)")
       .eq("active", true)
       .eq("product_catalog.status", "approved")
       .order("id", { ascending: true })
@@ -506,6 +519,7 @@ export default function ProductBrowse() {
           store_name: listing.profiles?.store_name || "متجر غير مسمّى",
           wholesale_price: listing.wholesale_price,
           quantity: chosenQty,
+          shipping_size: listing.product_catalog?.shipping_size || "medium",
         },
       ];
     }
