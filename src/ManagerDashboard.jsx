@@ -291,6 +291,7 @@ function Accounts({ accounts, loading }) {
 }
 
 function Settlements() {
+  const [mode, setMode] = useState("traders"); // "traders" | "drivers"
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -298,9 +299,12 @@ function Settlements() {
 
   const load = () => {
     setLoading(true);
-    supabase
-      .from("trader_invoices")
-      .select("*, profiles!trader_id(store_name, full_name)")
+    const query =
+      mode === "traders"
+        ? supabase.from("trader_invoices").select("*, profiles!trader_id(store_name, full_name)")
+        : supabase.from("driver_earnings").select("*, profiles!driver_id(full_name)");
+
+    query
       .order("status", { ascending: true })
       .order("created_at", { ascending: false })
       .then(({ data }) => {
@@ -309,24 +313,44 @@ function Settlements() {
       });
   };
 
-  useEffect(load, []);
+  useEffect(load, [mode]);
 
-  const settle = async (invoiceId) => {
-    setBusyId(invoiceId);
-    await supabase.rpc("settle_trader_invoice", { p_invoice_id: invoiceId, p_reference: refInput[invoiceId] || null });
+  const settle = async (id) => {
+    setBusyId(id);
+    const rpcName = mode === "traders" ? "settle_trader_invoice" : "settle_driver_earning";
+    const paramName = mode === "traders" ? "p_invoice_id" : "p_earning_id";
+    await supabase.rpc(rpcName, { [paramName]: id, p_reference: refInput[id] || null });
     setBusyId(null);
     load();
   };
 
+  const amountField = mode === "traders" ? "net_payable" : "driver_payable";
   const pending = invoices.filter((i) => i.status === "pending");
-  const totalPending = pending.reduce((s, i) => s + Number(i.net_payable), 0);
+  const totalPending = pending.reduce((s, i) => s + Number(i[amountField]), 0);
 
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex gap-2">
+        <button
+          onClick={() => setMode("traders")}
+          className="flex-1 text-xs font-medium py-2 rounded-lg"
+          style={{ background: mode === "traders" ? T.ink : "#fff", color: mode === "traders" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+        >
+          التجّار
+        </button>
+        <button
+          onClick={() => setMode("drivers")}
+          className="flex-1 text-xs font-medium py-2 rounded-lg"
+          style={{ background: mode === "drivers" ? T.ink : "#fff", color: mode === "drivers" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+        >
+          السائقون
+        </button>
+      </div>
+
       <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-        <div className="text-xs" style={{ color: T.sub }}>إجمالي المستحقات قيد التحويل لكل التجّار</div>
+        <div className="text-xs" style={{ color: T.sub }}>إجمالي المستحقات قيد التحويل ({mode === "traders" ? "كل التجّار" : "كل السائقين"})</div>
         <div className="text-2xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sealDeep }}>
           {totalPending.toFixed(2)} <span className="text-xs font-normal" style={{ color: T.sub }}>ر.س</span>
         </div>
@@ -335,16 +359,18 @@ function Settlements() {
       <div className="flex flex-col gap-2">
         {invoices.length === 0 ? (
           <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>
-            لا توجد فواتير تجّار بعد.
+            {mode === "traders" ? "لا توجد فواتير تجّار بعد." : "لا توجد مستحقات سائقين بعد."}
           </div>
         ) : invoices.map((inv) => (
           <div key={inv.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium" style={{ color: T.ink }}>
-                {inv.profiles?.store_name || inv.profiles?.full_name || "—"}
+                {mode === "traders" ? (inv.profiles?.store_name || inv.profiles?.full_name || "—") : (inv.profiles?.full_name || "—")}
               </div>
               <div className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>
-                طلب #{inv.order_id?.slice(0, 8)} · إجمالي: {inv.subtotal} ر.س · عمولة: {inv.commission_amount} ر.س · صافي: {inv.net_payable} ر.س
+                {mode === "traders"
+                  ? `طلب #${inv.order_id?.slice(0, 8)} · إجمالي: ${inv.subtotal} ر.س · عمولة: ${inv.commission_amount} ر.س · صافي: ${inv.net_payable} ر.س`
+                  : `طلب #${inv.order_id?.slice(0, 8)} · رسوم توصيل: ${inv.delivery_fee} ر.س · مستحق: ${inv.driver_payable} ر.س`}
               </div>
             </div>
             {inv.status === "settled" ? (
