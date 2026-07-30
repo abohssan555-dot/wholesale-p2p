@@ -110,7 +110,7 @@ function ProductRow({ listing, onAdd, inCart }) {
   );
 }
 
-function CartDrawer({ cart, setCart, onClose, session }) {
+function CartDrawer({ cart, setCart, onClose, session, city }) {
   const [placing, setPlacing] = useState(false);
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState(null);
@@ -144,7 +144,7 @@ function CartDrawer({ cart, setCart, onClose, session }) {
     const { data, error } = await supabase.rpc("place_order", {
       p_items: items,
       p_delivery_mode: "single_driver",
-      p_delivery_city: session.city || null,
+      p_delivery_city: city || null,
       p_requested_vehicle_type: vehicleType || null,
     });
     setPlacing(false);
@@ -350,7 +350,7 @@ export default function ProductBrowse() {
 
   useEffect(() => {
     if (session) {
-      supabase.from("profiles").select("full_name, business_name").eq("id", session.user.id).single()
+      supabase.from("profiles").select("full_name, business_name, city").eq("id", session.user.id).single()
         .then(({ data }) => setProfile(data));
     }
   }, [session]);
@@ -542,7 +542,7 @@ export default function ProductBrowse() {
         )}
       </div>
 
-      {showCart && <CartDrawer cart={cart} setCart={setCart} onClose={() => setShowCart(false)} session={session.user} />}
+      {showCart && <CartDrawer cart={cart} setCart={setCart} onClose={() => setShowCart(false)} session={session.user} city={profile?.city} />}
     </div>
   );
 }
