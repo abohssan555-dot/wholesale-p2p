@@ -95,6 +95,7 @@ const NAV = [
   { id: "approvals", label: "طلبات الاعتماد", icon: ShieldCheck },
   { id: "accounts", label: "الحسابات والأدوار", icon: Users },
   { id: "catalog", label: "الكتالوج المرجعي", icon: Database },
+  { id: "settlements", label: "التسويات المالية", icon: Wallet },
   { id: "audit", label: "سجل التدقيق", icon: ScrollText },
 ];
 
@@ -289,6 +290,93 @@ function Accounts({ accounts, loading }) {
   );
 }
 
+function Settlements() {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [refInput, setRefInput] = useState({});
+
+  const load = () => {
+    setLoading(true);
+    supabase
+      .from("trader_invoices")
+      .select("*, profiles!trader_id(store_name, full_name)")
+      .order("status", { ascending: true })
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setInvoices(data || []);
+        setLoading(false);
+      });
+  };
+
+  useEffect(load, []);
+
+  const settle = async (invoiceId) => {
+    setBusyId(invoiceId);
+    await supabase.rpc("settle_trader_invoice", { p_invoice_id: invoiceId, p_reference: refInput[invoiceId] || null });
+    setBusyId(null);
+    load();
+  };
+
+  const pending = invoices.filter((i) => i.status === "pending");
+  const totalPending = pending.reduce((s, i) => s + Number(i.net_payable), 0);
+
+  if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+        <div className="text-xs" style={{ color: T.sub }}>إجمالي المستحقات قيد التحويل لكل التجّار</div>
+        <div className="text-2xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sealDeep }}>
+          {totalPending.toFixed(2)} <span className="text-xs font-normal" style={{ color: T.sub }}>ر.س</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {invoices.length === 0 ? (
+          <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>
+            لا توجد فواتير تجّار بعد.
+          </div>
+        ) : invoices.map((inv) => (
+          <div key={inv.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium" style={{ color: T.ink }}>
+                {inv.profiles?.store_name || inv.profiles?.full_name || "—"}
+              </div>
+              <div className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>
+                إجمالي: {inv.subtotal} ر.س · عمولة: {inv.commission_amount} ر.س · صافي: {inv.net_payable} ر.س
+              </div>
+            </div>
+            {inv.status === "settled" ? (
+              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full shrink-0" style={{ background: T.goodBg, color: T.good }}>
+                تم التحويل {inv.settlement_reference ? `— ${inv.settlement_reference}` : ""}
+              </span>
+            ) : (
+              <div className="flex items-center gap-2 shrink-0">
+                <input
+                  placeholder="رقم التحويل (اختياري)"
+                  value={refInput[inv.id] || ""}
+                  onChange={(e) => setRefInput((r) => ({ ...r, [inv.id]: e.target.value }))}
+                  className="text-xs rounded-lg py-1.5 px-2 outline-none w-32"
+                  style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+                />
+                <button
+                  onClick={() => settle(inv.id)}
+                  disabled={busyId === inv.id}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg"
+                  style={{ background: T.ink, color: "#fff" }}
+                >
+                  {busyId === inv.id ? "..." : "تأكيد التحويل"}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Audit({ entries, loading }) {
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
   return (
@@ -400,6 +488,7 @@ export default function ManagerDashboard() {
     approvals: { title: "طلبات الاعتماد", node: <Approvals requests={requests} loading={loading.requests} onDecide={decide} /> },
     accounts: { title: "الحسابات والأدوار", node: <Accounts accounts={accounts} loading={loading.accounts} /> },
     catalog: { title: "الكتالوج المرجعي", node: <CatalogImportPanel session={session} /> },
+    settlements: { title: "التسويات المالية", node: <Settlements /> },
     audit: { title: "سجل التدقيق", node: <Audit entries={audit} loading={loading.audit} /> },
   };
 
