@@ -3,7 +3,7 @@ import { Navigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
 import {
-  Package, Truck, LogOut, Home, Loader2, MapPin, Store,
+  Package, Truck, LogOut, Home, Loader2, MapPin, Store, Wallet,
   CheckCircle2, Clock, Navigation, AlertTriangle,
 } from "lucide-react";
 
@@ -175,6 +175,78 @@ function OrderCard({ order, mode, onClaim, onAdvance, onConfirmPin, onReportIssu
             <CheckCircle2 size={13} /> منتهي
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+function DriverWalletPanel({ session }) {
+  const [earnings, setEarnings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("driver_earnings")
+      .select("*")
+      .eq("driver_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setEarnings(data || []);
+        setLoading(false);
+      });
+  }, [session]);
+
+  if (loading) return <div className="text-sm text-center py-10" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+
+  const pending = earnings.filter((e) => e.status === "pending");
+  const settled = earnings.filter((e) => e.status === "settled");
+  const pendingTotal = pending.reduce((s, e) => s + Number(e.driver_payable), 0);
+  const settledTotal = settled.reduce((s, e) => s + Number(e.driver_payable), 0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+          <div className="text-[11px]" style={{ color: T.sub }}>مستحق قيد التحويل</div>
+          <div className="text-xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sealDeep }}>
+            {pendingTotal.toFixed(2)} <span className="text-xs font-normal">ر.س</span>
+          </div>
+        </div>
+        <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+          <div className="text-[11px]" style={{ color: T.sub }}>تم تحويله سابقاً</div>
+          <div className="text-xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.good }}>
+            {settledTotal.toFixed(2)} <span className="text-xs font-normal">ر.س</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {earnings.length === 0 ? (
+          <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>
+            لا توجد مستحقات بعد — تظهر تلقائياً بعد كل عملية تسليم مكتملة.
+          </div>
+        ) : earnings.map((e) => (
+          <div key={e.id} className="rounded-xl p-4 flex items-center justify-between" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+            <div>
+              <div className="text-xs font-medium flex items-center gap-2" style={{ color: T.ink }}>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>طلب #{e.order_id.slice(0, 8)}</span>
+                <span style={{ color: T.sub, fontWeight: 400, fontSize: 11 }}>{new Date(e.created_at).toLocaleDateString("ar-SA")}</span>
+              </div>
+              {e.settlement_reference && (
+                <div className="text-[11px] mt-1" style={{ color: T.good }}>مرجع التحويل: {e.settlement_reference}</div>
+              )}
+            </div>
+            <div className="text-left shrink-0">
+              <div className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{e.driver_payable} ر.س</div>
+              <span
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                style={e.status === "settled" ? { background: T.goodBg, color: T.good } : { background: "#FBF1DD", color: T.sealDeep }}
+              >
+                {e.status === "settled" ? "تم التحويل" : "قيد الانتظار"}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -358,15 +430,24 @@ export default function DriverDashboard() {
           >
             <Truck size={13} /> طلباتي {activeMine.length > 0 && `(${activeMine.length})`}
           </button>
+          <button
+            onClick={() => setTab("wallet")}
+            className="flex-1 text-xs font-medium py-2.5 rounded-lg flex items-center justify-center gap-1.5"
+            style={{ background: tab === "wallet" ? T.good : T.goodBg, color: tab === "wallet" ? "#fff" : T.good, border: "1px solid #BFE0CE" }}
+          >
+            <Wallet size={13} /> المحفظة
+          </button>
         </div>
 
-        {err && (
+        {tab === "wallet" && <DriverWalletPanel session={session} />}
+
+        {err && tab !== "wallet" && (
           <div className="flex items-center gap-2 text-xs mb-3 p-3 rounded-lg" style={{ background: T.badBg, color: T.bad }}>
             <AlertTriangle size={13} /> {err}
           </div>
         )}
 
-        {loading ? (
+        {tab !== "wallet" && (loading ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={18} style={{ color: T.sealDeep }} /></div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -395,7 +476,7 @@ export default function DriverDashboard() {
               </>
             )}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
