@@ -36,6 +36,7 @@ function PendingCatalogReview() {
   const [busyId, setBusyId] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [sizeChoice, setSizeChoice] = useState({});
 
   const load = () => {
     setLoading(true);
@@ -48,6 +49,7 @@ function PendingCatalogReview() {
       .limit(100)
       .then(({ data }) => {
         setItems(data || []);
+        setSizeChoice(Object.fromEntries((data || []).map((it) => [it.id, "medium"])));
         setLoading(false);
       });
   };
@@ -56,7 +58,9 @@ function PendingCatalogReview() {
 
   const decide = async (id, status) => {
     setBusyId(id);
-    await supabase.from("product_catalog").update({ status }).eq("id", id);
+    const patch = { status };
+    if (status === "approved") patch.shipping_size = sizeChoice[id] || "medium";
+    await supabase.from("product_catalog").update(patch).eq("id", id);
     setBusyId(null);
     load();
   };
@@ -76,7 +80,14 @@ function PendingCatalogReview() {
 
   const bulkDecide = async (status) => {
     setBulkBusy(true);
-    await supabase.from("product_catalog").update({ status }).in("id", Array.from(selected));
+    if (status === "approved") {
+      // كل صنف بتصنيفه المختار له وقت الاعتماد الجماعي
+      for (const id of selected) {
+        await supabase.from("product_catalog").update({ status, shipping_size: sizeChoice[id] || "medium" }).eq("id", id);
+      }
+    } else {
+      await supabase.from("product_catalog").update({ status }).in("id", Array.from(selected));
+    }
     setBulkBusy(false);
     load();
   };
@@ -95,7 +106,7 @@ function PendingCatalogReview() {
         )}
       </div>
       <div className="text-xs mb-4" style={{ color: T.sub }}>
-        أصناف جديدة كلياً أضافها التجّار (بدون باركود مطابق) — تحتاج تأكيد أنها ليست تكراراً لصنف موجود باسم مختلف.
+        أصناف جديدة كلياً أضافها التجّار (بدون باركود مطابق) — تحتاج تأكيد أنها ليست تكراراً لصنف موجود باسم مختلف، وتحديد تصنيف وزن الشحنة قبل الاعتماد.
       </div>
 
       {selected.size > 0 && (
@@ -116,7 +127,7 @@ function PendingCatalogReview() {
               className="text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1"
               style={{ background: T.goodBg, color: T.good }}
             >
-              {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} اعتماد المحدَّد
+              {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} اعتماد المحدَّد (بالتصنيف المختار لكل صنف)
             </button>
           </div>
         </div>
@@ -142,6 +153,17 @@ function PendingCatalogReview() {
                   {it.profiles?.store_name || it.profiles?.full_name || "—"} · {it.barcode ? `باركود: ${it.barcode}` : "بدون باركود"}
                 </div>
               </div>
+              <select
+                value={sizeChoice[it.id] || "medium"}
+                onChange={(e) => setSizeChoice((s) => ({ ...s, [it.id]: e.target.value }))}
+                className="text-[11px] rounded-lg py-1.5 px-2 outline-none shrink-0"
+                style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+                title="تصنيف وزن الشحنة (يُحفظ عند الاعتماد)"
+              >
+                <option value="light">خفيف الوزن</option>
+                <option value="medium">متوسط الوزن</option>
+                <option value="bulky">ثقيل / مكتنز</option>
+              </select>
               <button
                 onClick={() => decide(it.id, "rejected")}
                 disabled={busyId === it.id}
@@ -154,7 +176,7 @@ function PendingCatalogReview() {
               <button
                 onClick={() => decide(it.id, "approved")}
                 disabled={busyId === it.id}
-                title="اعتماد هذا المنتج"
+                title="اعتماد هذا المنتج بالتصنيف المختار"
                 className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1 shrink-0"
                 style={{ background: T.goodBg, color: T.good }}
               >
