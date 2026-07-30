@@ -22,6 +22,8 @@ const CHUNK_SIZE = 500;
 // يقبل أعمدة مرنة نسبياً (بعض الملفات تسمي العمود "اسم المنتج" وبعضها "الاسم")
 const NAME_KEYS = ["اسم المنتج", "الاسم", "product_name", "name"];
 const BARCODE_KEYS = ["باركود المنتج", "الباركود", "barcode"];
+const SIZE_KEYS = ["حجم الشحنة", "التصنيف", "shipping_size"];
+const SIZE_AR_TO_EN = { "خفيف": "light", "خفيف الوزن": "light", "متوسط": "medium", "متوسط الوزن": "medium", "ثقيل": "bulky", "ثقيل / مكتنز": "bulky", "مكتنز": "bulky" };
 
 function pick(row, keys) {
   for (const k of keys) {
@@ -217,6 +219,7 @@ export default function CatalogImportPanel({ session }) {
         for (const r of raw) {
           const name = pick(r, NAME_KEYS);
           const barcode = pick(r, BARCODE_KEYS);
+          const sizeRaw = pick(r, SIZE_KEYS);
           if (!name) continue;
           const barcodeStr = barcode ? String(barcode).trim() : null;
           // تفادي تكرار نفس الباركود أكثر من مرة داخل الملف نفسه
@@ -224,7 +227,8 @@ export default function CatalogImportPanel({ session }) {
             if (seen.has(barcodeStr)) continue;
             seen.add(barcodeStr);
           }
-          parsed.push({ name: String(name).trim(), barcode: barcodeStr });
+          const shippingSize = SIZE_AR_TO_EN[String(sizeRaw || "").trim()] || "medium";
+          parsed.push({ name: String(name).trim(), barcode: barcodeStr, shipping_size: shippingSize });
         }
 
         if (!parsed.length) {
@@ -251,6 +255,7 @@ export default function CatalogImportPanel({ session }) {
         name: r.name,
         barcode: r.barcode,
         category_id: "other",
+        shipping_size: r.shipping_size || "medium",
         status: "approved",
         created_by: session.user.id,
       }));
