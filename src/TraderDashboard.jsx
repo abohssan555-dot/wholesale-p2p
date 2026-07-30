@@ -483,7 +483,7 @@ function WalletPanel({ session }) {
   useEffect(() => {
     supabase
       .from("trader_invoices")
-      .select("*")
+      .select("*, orders(customer_id, profiles!customer_id(business_name, full_name))")
       .eq("trader_id", session.user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
@@ -546,7 +546,7 @@ function WalletPanel({ session }) {
                   <span style={{ color: T.sub, fontWeight: 400, fontSize: 11 }}>{new Date(inv.created_at).toLocaleDateString("ar-SA")}</span>
                 </div>
                 <div className="text-[11px] mt-1" style={{ color: T.sub }}>
-                  هذه الفاتورة تخص منتجاتك فقط ضمن هذا الطلب
+                  هذه الفاتورة تخص منتجاتك فقط ضمن طلب من العميل {inv.orders?.profiles?.business_name || inv.orders?.profiles?.full_name || "—"}
                 </div>
               </div>
               <div className="text-left shrink-0">
