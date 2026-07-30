@@ -344,7 +344,7 @@ function Settlements() {
                 {inv.profiles?.store_name || inv.profiles?.full_name || "—"}
               </div>
               <div className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>
-                إجمالي: {inv.subtotal} ر.س · عمولة: {inv.commission_amount} ر.س · صافي: {inv.net_payable} ر.س
+                طلب #{inv.order_id?.slice(0, 8)} · إجمالي: {inv.subtotal} ر.س · عمولة: {inv.commission_amount} ر.س · صافي: {inv.net_payable} ر.س
               </div>
             </div>
             {inv.status === "settled" ? (
