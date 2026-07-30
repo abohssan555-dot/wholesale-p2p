@@ -115,6 +115,7 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState(null);
   const [vehicleType, setVehicleType] = useState("");
+  const [deliverySpeed, setDeliverySpeed] = useState("standard");
 
   const setQty = (key, qty) => {
     const updated = cart.map((c) => (c.key === key ? { ...c, quantity: Math.max(1, qty) } : c));
@@ -146,6 +147,7 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
       p_delivery_mode: "single_driver",
       p_delivery_city: city || null,
       p_requested_vehicle_type: vehicleType || null,
+      p_delivery_speed: deliverySpeed,
     });
     setPlacing(false);
     if (error) {
@@ -211,6 +213,26 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
                 ))}
               </div>
             ))}
+
+            <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+              <label className="text-[11px] font-medium block mb-1.5" style={{ color: T.sub }}>سرعة التوصيل</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeliverySpeed("standard")}
+                  className="flex-1 text-xs font-medium py-2 rounded-lg"
+                  style={{ background: deliverySpeed === "standard" ? T.ink : T.paper, color: deliverySpeed === "standard" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+                >
+                  عادي (قد يُجمَّع مع طلبات أخرى)
+                </button>
+                <button
+                  onClick={() => setDeliverySpeed("express")}
+                  className="flex-1 text-xs font-medium py-2 rounded-lg"
+                  style={{ background: deliverySpeed === "express" ? T.ink : T.paper, color: deliverySpeed === "express" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+                >
+                  سريع (توصيل منفرد فقط)
+                </button>
+              </div>
+            </div>
 
             <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
               <label className="text-[11px] font-medium block mb-1" style={{ color: T.sub }}>نوع المركبة المفضّل للتوصيل (اختياري)</label>
@@ -282,7 +304,7 @@ function MyOrdersTab({ session }) {
   useEffect(() => {
     supabase
       .from("orders")
-      .select("*, order_items(product_name, quantity, unit_price, trader_id)")
+      .select("*, delivery_pin, order_items(product_name, quantity, unit_price, trader_id)")
       .eq("customer_id", session.user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
@@ -321,6 +343,12 @@ function MyOrdersTab({ session }) {
           <div className="text-[11px] mb-2" style={{ color: T.sub }}>
             {(o.order_items || []).length} صنف · {[...new Set((o.order_items || []).map((i) => i.trader_id))].length} تاجر
           </div>
+          {o.status !== "delivered" && o.status !== "cancelled" && o.delivery_pin && (
+            <div className="rounded-lg p-2.5 mb-2 flex items-center justify-between" style={{ background: "#FBF1DD" }}>
+              <span className="text-[11px]" style={{ color: T.sealDeep }}>رمز التسليم — أعطه للسائق عند الاستلام</span>
+              <span className="text-base font-bold" style={{ color: T.sealDeep, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.2em" }}>{o.delivery_pin}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
               {o.subtotal} ر.س
