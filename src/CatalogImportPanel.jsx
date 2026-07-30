@@ -249,6 +249,7 @@ export default function CatalogImportPanel({ session }) {
     setErr("");
     let inserted = 0;
     let failed = 0;
+    const errorSamples = [];
 
     for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
       const chunk = rows.slice(i, i + CHUNK_SIZE).map((r) => ({
@@ -266,6 +267,7 @@ export default function CatalogImportPanel({ session }) {
 
       if (error) {
         failed += chunk.length;
+        if (errorSamples.length < 3) errorSamples.push(error.message || JSON.stringify(error));
       } else {
         inserted += chunk.length;
       }
@@ -273,7 +275,7 @@ export default function CatalogImportPanel({ session }) {
     }
 
     setImporting(false);
-    setResult({ inserted, failed, total: rows.length });
+    setResult({ inserted, failed, total: rows.length, errorSamples });
     setRows(null);
   };
 
@@ -286,6 +288,14 @@ export default function CatalogImportPanel({ session }) {
         <div className="text-xs" style={{ color: T.sub }}>
           من أصل {result.total} صف: {result.inserted} تمت معالجتها، {result.failed} فشلت.
         </div>
+        {result.errorSamples && result.errorSamples.length > 0 && (
+          <div className="mt-3 rounded-lg p-3" style={{ background: T.badBg }}>
+            <div className="text-[11px] font-medium mb-1" style={{ color: T.bad }}>نص الخطأ (لتشخيص السبب):</div>
+            {result.errorSamples.map((m, i) => (
+              <div key={i} className="text-[11px] mb-1" style={{ color: T.bad, fontFamily: "'JetBrains Mono', monospace" }}>{m}</div>
+            ))}
+          </div>
+        )}
         <button
           onClick={() => setResult(null)}
           className="text-xs font-medium px-4 py-2 rounded-lg mt-4"
