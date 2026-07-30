@@ -550,7 +550,7 @@ export default function TraderDashboard() {
   return (
     <div dir="rtl" className="w-full min-h-screen" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper }}>
       <header className="px-6 md:px-10 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${T.line}` }}>
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2" style={{ textDecoration: "none" }} title="الصفحة الرئيسية">
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
@@ -558,15 +558,8 @@ export default function TraderDashboard() {
             <div className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</div>
             <div className="text-[11px]" style={{ color: T.sub }}>لوحة تحكم متجر {profile?.store_name || "التاجر"}</div>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg"
-            style={{ color: T.sub, border: `1px solid ${T.line}`, textDecoration: "none" }}
-          >
-            <Home size={13} /> الصفحة الرئيسية
-          </Link>
           <button onClick={() => supabase.auth.signOut()} className="text-xs font-medium flex items-center gap-1.5" style={{ color: T.sub }}>
             <LogOut size={14} /> خروج
           </button>
