@@ -49,9 +49,16 @@ const NEXT_LABEL = {
 
 function OrderCard({ order, mode, onClaim, onAdvance, onConfirmPin, onReportIssue, busy }) {
   const [pin, setPin] = useState("");
+  const [pinErr, setPinErr] = useState("");
   const [showIssue, setShowIssue] = useState(false);
   const [issueNote, setIssueNote] = useState("");
   const traderNames = [...new Set((order.order_items || []).map((i) => i.trader_id))];
+
+  const submitPin = async () => {
+    setPinErr("");
+    const ok = await onConfirmPin(order.id, pin);
+    if (!ok) setPinErr("الرمز غير صحيح — تأكد منه مع العميل وحاول مرة أخرى.");
+  };
 
   return (
     <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
@@ -98,7 +105,7 @@ function OrderCard({ order, mode, onClaim, onAdvance, onConfirmPin, onReportIssu
               style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.3em" }}
             />
             <button
-              onClick={() => onConfirmPin(order.id, pin)}
+              onClick={submitPin}
               disabled={busy || pin.length !== 4}
               className="text-xs font-medium px-3 rounded-lg"
               style={{ background: T.good, color: "#fff" }}
@@ -106,6 +113,7 @@ function OrderCard({ order, mode, onClaim, onAdvance, onConfirmPin, onReportIssu
               تأكيد
             </button>
           </div>
+          {pinErr && <div className="text-[11px] mt-1.5" style={{ color: T.bad }}>{pinErr}</div>}
           {!showIssue ? (
             <button onClick={() => setShowIssue(true)} className="text-[11px] font-medium mt-2" style={{ color: T.bad }}>
               العميل لا يتجاوب / رفض إعطاء الرمز
@@ -276,10 +284,10 @@ export default function DriverDashboard() {
     const { data: ok, error } = await supabase.rpc("confirm_delivery", { p_order_id: orderId, p_entered_pin: pin });
     setBusyId(null);
     if (error || !ok) {
-      setErr("الرمز غير صحيح — تأكد من الرمز مع العميل وحاول مرة أخرى.");
-      return;
+      return false;
     }
     loadOrders();
+    return true;
   };
 
   const reportIssue = async (orderId, note) => {
@@ -305,7 +313,7 @@ export default function DriverDashboard() {
   return (
     <div dir="rtl" className="w-full min-h-screen" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper }}>
       <header className="px-6 md:px-10 py-4 flex items-center justify-between sticky top-0 z-10" style={{ background: T.paper, borderBottom: `1px solid ${T.line}` }}>
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2" style={{ textDecoration: "none" }} title="الصفحة الرئيسية">
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
@@ -315,11 +323,8 @@ export default function DriverDashboard() {
               {profile?.full_name ? `أهلاً بك، ${profile.full_name}` : "لوحة السائق"}
             </div>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg" style={{ color: T.sub, border: `1px solid ${T.line}`, textDecoration: "none" }}>
-            <Home size={13} /> الرئيسية
-          </Link>
           <button onClick={() => supabase.auth.signOut()} className="text-xs font-medium flex items-center gap-1.5" style={{ color: T.sub }}>
             <LogOut size={14} /> خروج
           </button>
