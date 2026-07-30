@@ -41,31 +41,38 @@ const STATUS_LABELS = {
 
 const NEXT_STATUS = {
   preparing: "out_for_delivery",
-  out_for_delivery: "delivered",
 };
 
 const NEXT_LABEL = {
   preparing: "بدء التوصيل",
-  out_for_delivery: "تأكيد التسليم",
 };
 
-function OrderCard({ order, mode, onClaim, onAdvance, busy }) {
+function OrderCard({ order, mode, onClaim, onAdvance, onConfirmPin, onReportIssue, busy }) {
+  const [pin, setPin] = useState("");
+  const [showIssue, setShowIssue] = useState(false);
+  const [issueNote, setIssueNote] = useState("");
   const traderNames = [...new Set((order.order_items || []).map((i) => i.trader_id))];
+
   return (
     <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>
           طلب #{order.id.slice(0, 8)}
         </span>
-        <span
-          className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-          style={{
-            background: order.status === "delivered" ? T.goodBg : "#FBF1DD",
-            color: order.status === "delivered" ? T.good : T.sealDeep,
-          }}
-        >
-          {STATUS_LABELS[order.status] || order.status}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {order.delivery_speed === "express" && (
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: T.badBg, color: T.bad }}>سريع منفرد</span>
+          )}
+          <span
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+            style={{
+              background: order.status === "delivered" ? T.goodBg : "#FBF1DD",
+              color: order.status === "delivered" ? T.good : T.sealDeep,
+            }}
+          >
+            {STATUS_LABELS[order.status] || order.status}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 text-xs mb-1" style={{ color: T.ink }}>
@@ -76,6 +83,55 @@ function OrderCard({ order, mode, onClaim, onAdvance, busy }) {
       <div className="flex items-center gap-1.5 text-[11px] mb-3" style={{ color: T.sub }}>
         <Store size={11} /> {traderNames.length} تاجر · {(order.order_items || []).length} صنف
       </div>
+
+      {mode === "mine" && order.status === "out_for_delivery" && (
+        <div className="rounded-lg p-3 mb-3" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+          <label className="text-[11px] font-medium block mb-1" style={{ color: T.sub }}>
+            اطلب رمز التسليم من العميل (4 أرقام) لإتمام التسليم
+          </label>
+          <div className="flex gap-2">
+            <input
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="0000"
+              className="flex-1 text-sm text-center rounded-lg py-2 px-3 outline-none"
+              style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.3em" }}
+            />
+            <button
+              onClick={() => onConfirmPin(order.id, pin)}
+              disabled={busy || pin.length !== 4}
+              className="text-xs font-medium px-3 rounded-lg"
+              style={{ background: T.good, color: "#fff" }}
+            >
+              تأكيد
+            </button>
+          </div>
+          {!showIssue ? (
+            <button onClick={() => setShowIssue(true)} className="text-[11px] font-medium mt-2" style={{ color: T.bad }}>
+              العميل لا يتجاوب / رفض إعطاء الرمز
+            </button>
+          ) : (
+            <div className="mt-2">
+              <textarea
+                value={issueNote}
+                onChange={(e) => setIssueNote(e.target.value)}
+                placeholder="اكتب وصفاً موجزاً للمشكلة..."
+                className="w-full text-xs rounded-lg py-2 px-3 outline-none mb-2"
+                style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+                rows={2}
+              />
+              <button
+                onClick={() => onReportIssue(order.id, issueNote)}
+                disabled={busy || !issueNote.trim()}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg"
+                style={{ background: T.bad, color: "#fff" }}
+              >
+                تصعيد للمشرف اللوجستي
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
@@ -152,12 +208,14 @@ export default function DriverDashboard() {
       .then(({ data }) => setProfile(data));
   }, [session]);
 
+  const ORDER_COLS = "id, status, delivery_city, delivery_address, subtotal, delivery_speed, requested_vehicle_type, delivery_issue_note, driver_id, created_at, order_items(trader_id)";
+
   const loadOrders = useCallback(async () => {
     if (!session) return;
     setLoading(true);
     const { data: avail } = await supabase
       .from("orders")
-      .select("*, order_items(trader_id)")
+      .select(ORDER_COLS)
       .is("driver_id", null)
       .eq("status", "confirmed")
       .order("created_at", { ascending: true });
@@ -165,7 +223,7 @@ export default function DriverDashboard() {
 
     const { data: myOrders } = await supabase
       .from("orders")
-      .select("*, order_items(trader_id)")
+      .select(ORDER_COLS)
       .eq("driver_id", session.user.id)
       .order("created_at", { ascending: false });
     setMine(myOrders || []);
@@ -179,6 +237,14 @@ export default function DriverDashboard() {
   const claim = async (orderId) => {
     setErr("");
     setBusyId(orderId);
+
+    const { data: canClaim } = await supabase.rpc("can_driver_claim_order", { p_order_id: orderId });
+    if (!canClaim) {
+      setBusyId(null);
+      setErr("لا يمكنك استلام هذا الطلب حالياً — إما لديك طلب \"سريع\" شغّال، أو هذا الطلب سريع ولديك طلبات أخرى قيد التنفيذ.");
+      return;
+    }
+
     const { error } = await supabase
       .from("orders")
       .update({ driver_id: session.user.id, status: "preparing" })
@@ -201,6 +267,26 @@ export default function DriverDashboard() {
       .eq("driver_id", session.user.id);
     setBusyId(null);
     if (error) setErr("تعذّر تحديث حالة الطلب.");
+    loadOrders();
+  };
+
+  const confirmWithPin = async (orderId, pin) => {
+    setErr("");
+    setBusyId(orderId);
+    const { data: ok, error } = await supabase.rpc("confirm_delivery", { p_order_id: orderId, p_entered_pin: pin });
+    setBusyId(null);
+    if (error || !ok) {
+      setErr("الرمز غير صحيح — تأكد من الرمز مع العميل وحاول مرة أخرى.");
+      return;
+    }
+    loadOrders();
+  };
+
+  const reportIssue = async (orderId, note) => {
+    setBusyId(orderId);
+    await supabase.rpc("report_delivery_issue", { p_order_id: orderId, p_note: note });
+    setBusyId(null);
+    setErr("تم تصعيد المشكلة للمشرف اللوجستي.");
     loadOrders();
   };
 
@@ -289,7 +375,7 @@ export default function DriverDashboard() {
 
             {tab === "mine" && (
               <>
-                {activeMine.map((o) => <OrderCard key={o.id} order={o} mode="mine" onAdvance={advance} busy={busyId === o.id} />)}
+                {activeMine.map((o) => <OrderCard key={o.id} order={o} mode="mine" onAdvance={advance} onConfirmPin={confirmWithPin} onReportIssue={reportIssue} busy={busyId === o.id} />)}
                 {activeMine.length === 0 && doneMine.length === 0 && (
                   <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>
                     لا توجد طلبات مسندة إليك حالياً.
