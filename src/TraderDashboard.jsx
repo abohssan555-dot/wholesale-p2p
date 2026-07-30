@@ -477,6 +477,8 @@ function ListingsTable({ listings, loading }) {
 function WalletPanel({ session }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+  const [itemsCache, setItemsCache] = useState({});
 
   useEffect(() => {
     supabase
@@ -489,6 +491,22 @@ function WalletPanel({ session }) {
         setLoading(false);
       });
   }, [session]);
+
+  const toggleExpand = async (inv) => {
+    if (expanded === inv.id) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(inv.id);
+    if (!itemsCache[inv.id]) {
+      const { data } = await supabase
+        .from("order_items")
+        .select("product_name, quantity, unit_price, line_total")
+        .eq("order_id", inv.order_id)
+        .eq("trader_id", session.user.id);
+      setItemsCache((c) => ({ ...c, [inv.id]: data || [] }));
+    }
+  };
 
   if (loading) return <div className="text-sm text-center py-10" style={{ color: T.sub }}>جارٍ التحميل...</div>;
 
@@ -514,40 +532,52 @@ function WalletPanel({ session }) {
         </div>
       </div>
 
-      <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-        <table className="w-full text-sm">
-          <thead>
-            <tr style={{ background: T.paper, color: T.sub }}>
-              <th className="text-start font-medium px-4 py-3">التاريخ</th>
-              <th className="text-start font-medium px-4 py-3">إجمالي الطلب</th>
-              <th className="text-start font-medium px-4 py-3">العمولة</th>
-              <th className="text-start font-medium px-4 py-3">صافي المستحق</th>
-              <th className="text-start font-medium px-4 py-3">الحالة</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoices.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-sm text-center" style={{ color: T.sub }}>لا توجد فواتير بعد.</td></tr>
-            ) : invoices.map((inv, i) => (
-              <tr key={inv.id} style={{ borderTop: i ? `1px solid ${T.line}` : "none" }}>
-                <td className="px-4 py-3" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                  {new Date(inv.created_at).toLocaleDateString("ar-SA")}
-                </td>
-                <td className="px-4 py-3" style={{ color: T.ink, fontFamily: "'JetBrains Mono', monospace" }}>{inv.subtotal} ر.س</td>
-                <td className="px-4 py-3" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>{inv.commission_amount} ر.س ({inv.commission_rate}%)</td>
-                <td className="px-4 py-3 font-medium" style={{ color: T.ink, fontFamily: "'JetBrains Mono', monospace" }}>{inv.net_payable} ر.س</td>
-                <td className="px-4 py-3">
-                  <span
-                    className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                    style={inv.status === "settled" ? { background: T.goodBg, color: T.good } : { background: "#FBF1DD", color: T.sealDeep }}
-                  >
-                    {inv.status === "settled" ? "تم التحويل" : "قيد الانتظار"}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex flex-col gap-2">
+        {invoices.length === 0 ? (
+          <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>
+            لا توجد فواتير بعد.
+          </div>
+        ) : invoices.map((inv) => (
+          <div key={inv.id} className="rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+            <button onClick={() => toggleExpand(inv)} className="w-full flex items-center gap-3 p-4 text-right">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium flex items-center gap-2" style={{ color: T.ink }}>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>طلب #{inv.order_id?.slice(0, 8)}</span>
+                  <span style={{ color: T.sub, fontWeight: 400, fontSize: 11 }}>{new Date(inv.created_at).toLocaleDateString("ar-SA")}</span>
+                </div>
+                <div className="text-[11px] mt-1" style={{ color: T.sub }}>
+                  هذه الفاتورة تجمع كل منتجاتك ضمن هذا الطلب (قد يحتوي الطلب منتجات من تجّار آخرين أيضاً، تُفوتَر لهم منفصلة)
+                </div>
+              </div>
+              <div className="text-left shrink-0">
+                <div className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{inv.net_payable} ر.س</div>
+                <span
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  style={inv.status === "settled" ? { background: T.goodBg, color: T.good } : { background: "#FBF1DD", color: T.sealDeep }}
+                >
+                  {inv.status === "settled" ? "تم التحويل" : "قيد الانتظار"}
+                </span>
+              </div>
+            </button>
+
+            {expanded === inv.id && (
+              <div className="px-4 pb-4" style={{ borderTop: `1px solid ${T.line}` }}>
+                <div className="text-[11px] pt-3 pb-2" style={{ color: T.sub }}>
+                  إجمالي منتجاتك: {inv.subtotal} ر.س − عمولة المنصة ({inv.commission_rate}%): {inv.commission_amount} ر.س = صافي {inv.net_payable} ر.س
+                </div>
+                {(itemsCache[inv.id] || []).map((item, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs py-1.5" style={{ borderTop: i ? `1px solid ${T.line}` : "none", color: T.ink }}>
+                    <span>{item.product_name} × {item.quantity}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sub }}>{item.line_total} ر.س</span>
+                  </div>
+                ))}
+                {inv.settlement_reference && (
+                  <div className="text-[11px] mt-2" style={{ color: T.good }}>مرجع التحويل: {inv.settlement_reference}</div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
