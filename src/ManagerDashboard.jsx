@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   Home,
   Database,
+  Image as ImageIcon,
   FileText,
   LogOut,
   Loader2,
@@ -96,6 +97,7 @@ const NAV = [
   { id: "accounts", label: "الحسابات والأدوار", icon: Users },
   { id: "catalog", label: "الكتالوج المرجعي", icon: Database },
   { id: "settlements", label: "التسويات المالية", icon: Wallet },
+  { id: "ads", label: "الإعلانات", icon: ImageIcon },
   { id: "audit", label: "سجل التدقيق", icon: ScrollText },
 ];
 
@@ -258,6 +260,42 @@ function Approvals({ requests, loading, onDecide }) {
   );
 }
 
+function CommissionCell({ account }) {
+  const [value, setValue] = useState(account.commission_rate_override ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const isTrader = (account.user_roles || []).some((ur) => ur.role_id === "trader");
+  if (!isTrader) return <span style={{ color: T.sub }}>—</span>;
+
+  const save = async () => {
+    setSaving(true);
+    const num = value === "" ? null : Number(value);
+    await supabase.from("profiles").update({ commission_rate_override: num }).eq("id", account.id);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="number"
+        step="0.5"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="5 (عام)"
+        className="w-16 text-xs rounded-lg py-1 px-2 outline-none"
+        style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+      />
+      <span className="text-[10px]" style={{ color: T.sub }}>%</span>
+      <button onClick={save} disabled={saving} className="text-[10px] font-medium px-2 py-1 rounded-lg" style={{ background: saved ? T.goodBg : T.paper, color: saved ? T.good : T.sub, border: `1px solid ${T.line}` }}>
+        {saved ? "تم ✓" : saving ? "..." : "حفظ"}
+      </button>
+    </div>
+  );
+}
+
 function Accounts({ accounts, loading }) {
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
   return (
@@ -268,11 +306,12 @@ function Accounts({ accounts, loading }) {
             <th className="text-start font-medium px-5 py-3">الاسم</th>
             <th className="text-start font-medium px-5 py-3">الدور</th>
             <th className="text-start font-medium px-5 py-3">الحالة</th>
+            <th className="text-start font-medium px-5 py-3">نسبة العمولة (للتجّار)</th>
           </tr>
         </thead>
         <tbody>
           {accounts.length === 0 ? (
-            <tr><td colSpan={3} className="px-5 py-4 text-sm" style={{ color: T.sub }}>لا يوجد حسابات مسجّلة بعد.</td></tr>
+            <tr><td colSpan={4} className="px-5 py-4 text-sm" style={{ color: T.sub }}>لا يوجد حسابات مسجّلة بعد.</td></tr>
           ) : accounts.map((a, i) => (
             <tr key={a.id} style={{ borderTop: i ? `1px solid ${T.line}` : "none" }}>
               <td className="px-5 py-3.5 font-medium" style={{ color: T.ink }}>{a.full_name}</td>
@@ -282,10 +321,139 @@ function Accounts({ accounts, loading }) {
               <td className="px-5 py-3.5">
                 <Badge tone={a.status === "active" ? "good" : "bad"}>{a.status === "active" ? "نشط" : "معلّق"}</Badge>
               </td>
+              <td className="px-5 py-3.5">
+                <CommissionCell account={a} />
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function AdReviews() {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [refInput, setRefInput] = useState({});
+  const [mediaUrls, setMediaUrls] = useState({});
+
+  const load = () => {
+    setLoading(true);
+    supabase
+      .from("ad_bookings")
+      .select("*, profiles!trader_id(store_name, full_name), ad_slots(name_ar)")
+      .order("status", { ascending: true })
+      .order("created_at", { ascending: false })
+      .then(async ({ data }) => {
+        setBookings(data || []);
+        setLoading(false);
+        const urls = {};
+        for (const b of data || []) {
+          if (b.media_path) {
+            const { data: signed } = await supabase.storage.from("ad-creatives").createSignedUrl(b.media_path, 3600);
+            if (signed) urls[b.id] = signed.signedUrl;
+          }
+        }
+        setMediaUrls(urls);
+      });
+  };
+
+  useEffect(load, []);
+
+  const approve = async (id) => {
+    setBusyId(id);
+    await supabase.rpc("approve_ad_booking", { p_booking_id: id, p_reference: refInput[id] || null });
+    setBusyId(null);
+    load();
+  };
+
+  const reject = async (id) => {
+    setBusyId(id);
+    await supabase.rpc("reject_ad_booking", { p_booking_id: id });
+    setBusyId(null);
+    load();
+  };
+
+  const STATUS_LABELS = {
+    pending_payment: "بانتظار تأكيد السداد",
+    pending_review: "قيد المراجعة",
+    active: "نشط الآن",
+    rejected: "مرفوض",
+    expired: "منتهي",
+  };
+
+  const pending = bookings.filter((b) => b.status === "pending_payment" || b.status === "pending_review");
+
+  if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="text-xs" style={{ color: T.sub }}>طلبات بانتظار المراجعة: {pending.length}</div>
+      {bookings.length === 0 ? (
+        <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>
+          لا توجد طلبات إعلانية بعد.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {bookings.map((b) => (
+            <div key={b.id} className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+              <div className="flex items-center gap-4">
+                {mediaUrls[b.id] && (
+                  <img src={mediaUrls[b.id]} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" style={{ border: `1px solid ${T.line}` }} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium" style={{ color: T.ink }}>
+                    {b.profiles?.store_name || b.profiles?.full_name || "—"} · {b.ad_slots?.name_ar}
+                  </div>
+                  <div className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {b.start_date} → {b.end_date} · {b.total_price} ر.س
+                  </div>
+                </div>
+                <span
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0"
+                  style={
+                    b.status === "active" ? { background: T.goodBg, color: T.good }
+                    : b.status === "rejected" ? { background: T.badBg, color: T.bad }
+                    : { background: "#FBF1DD", color: T.sealDeep }
+                  }
+                >
+                  {STATUS_LABELS[b.status] || b.status}
+                </span>
+              </div>
+
+              {(b.status === "pending_payment" || b.status === "pending_review") && (
+                <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: `1px solid ${T.line}` }}>
+                  <input
+                    placeholder="رقم التحويل (اختياري)"
+                    value={refInput[b.id] || ""}
+                    onChange={(e) => setRefInput((r) => ({ ...r, [b.id]: e.target.value }))}
+                    className="text-xs rounded-lg py-1.5 px-2 outline-none flex-1"
+                    style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+                  />
+                  <button
+                    onClick={() => reject(b.id)}
+                    disabled={busyId === b.id}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg"
+                    style={{ background: T.badBg, color: T.bad }}
+                  >
+                    رفض
+                  </button>
+                  <button
+                    onClick={() => approve(b.id)}
+                    disabled={busyId === b.id}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg"
+                    style={{ background: T.good, color: "#fff" }}
+                  >
+                    تأكيد السداد ونشر
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -515,6 +683,7 @@ export default function ManagerDashboard() {
     accounts: { title: "الحسابات والأدوار", node: <Accounts accounts={accounts} loading={loading.accounts} /> },
     catalog: { title: "الكتالوج المرجعي", node: <CatalogImportPanel session={session} /> },
     settlements: { title: "التسويات المالية", node: <Settlements /> },
+    ads: { title: "الإعلانات", node: <AdReviews /> },
     audit: { title: "سجل التدقيق", node: <Audit entries={audit} loading={loading.audit} /> },
   };
 
