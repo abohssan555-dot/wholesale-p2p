@@ -789,8 +789,8 @@ export default function ProductBrowse() {
         ) : (
         <>
         {appAd && (
-          <a href={appAd.link_url || "#"} className="block rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${T.line}` }}>
-            <img src={appAd.url} alt="إعلان" className="w-full object-cover" style={{ aspectRatio: "1000 / 250", maxHeight: 140 }} />
+          <a href={appAd.link_url || "#"} className="block rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${T.line}`, aspectRatio: "1000 / 250", maxHeight: 140 }}>
+            <img src={appAd.url} alt="إعلان" className="w-full h-full object-cover" />
           </a>
         )}
         <div className="flex gap-2 mb-5">
