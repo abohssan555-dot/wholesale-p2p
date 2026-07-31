@@ -143,7 +143,10 @@ export default function Landing() {
 
   useEffect(() => {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
-    supabase.rpc("get_active_ads", { p_placement: "landing_page" }).then(({ data }) => setAds(data || []));
+    supabase.rpc("get_active_ads", { p_placement: "landing_page" }).then(({ data }) => {
+      setAds(data || []);
+      (data || []).forEach((a) => supabase.rpc("log_ad_view", { p_booking_id: a.id }));
+    });
     const t = setTimeout(() => setShowPopup(true), 2500);
     return () => clearTimeout(t);
   }, []);
