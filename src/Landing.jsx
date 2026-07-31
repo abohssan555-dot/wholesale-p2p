@@ -39,8 +39,8 @@ function useFonts() {
     const style = document.createElement("style");
     style.textContent = `
       @keyframes ticker-scroll {
-        from { transform: translateX(-100%); }
-        to { transform: translateX(0); }
+        0% { transform: translateX(-100vw); }
+        100% { transform: translateX(100vw); }
       }
     `;
     document.head.appendChild(style);
@@ -153,6 +153,7 @@ export default function Landing() {
   const [showPopup, setShowPopup] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
   const [ads, setAds] = useState([]);
+  const [tickerIndex, setTickerIndex] = useState(0);
 
   useEffect(() => {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
@@ -176,6 +177,16 @@ export default function Landing() {
     .filter((a) => a.slot_id === "ticker")
     .map((a) => ({ ...a, url: a.media_path ? supabase.storage.from("ad-creatives").getPublicUrl(a.media_path).data.publicUrl : null }));
 
+  useEffect(() => {
+    if (tickerAds.length < 2) return;
+    const interval = setInterval(() => {
+      setTickerIndex((i) => (i + 1) % tickerAds.length);
+    }, 9000);
+    return () => clearInterval(interval);
+  }, [tickerAds.length]);
+
+  const currentTickerAd = tickerAds[tickerIndex % Math.max(tickerAds.length, 1)];
+
   return (
     <div dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper, minHeight: "100vh" }}>
       {/* Header */}
@@ -196,33 +207,27 @@ export default function Landing() {
         </a>
       </header>
 
-      {tickerAds.length > 0 && (
-        <div style={{ background: T.paper, borderBottom: `1px solid ${T.line}`, overflow: "hidden" }}>
-          <div className="py-2.5" style={{ overflow: "hidden", width: "100%" }}>
-            <div
-              style={{
-                display: "inline-block",
-                whiteSpace: "nowrap",
-                paddingLeft: "100%",
-                animation: `ticker-scroll ${Math.max(15, tickerAds.length * 10)}s linear infinite`,
-              }}
-            >
-              {tickerAds.map((ad, i) => (
-                <a
-                  key={`${ad.id}-${i}`}
-                  href={ad.link_url || "#"}
-                  className="inline-flex items-center gap-2"
-                  style={{ textDecoration: "none", marginLeft: 48 }}
-                >
-                  {ad.content_type === "text" ? (
-                    <span className="text-sm font-medium" style={{ color: T.sealDeep }}>{ad.text_content}</span>
-                  ) : (
-                    <img src={ad.url} alt="إعلان" className="rounded object-cover align-middle" style={{ height: 60, width: 240 }} />
-                  )}
-                </a>
-              ))}
-            </div>
-          </div>
+      {currentTickerAd && (
+        <div style={{ background: T.paper, borderBottom: `1px solid ${T.line}`, overflow: "hidden", position: "relative", height: 56 }}>
+          <a
+            key={currentTickerAd.id + "-" + tickerIndex}
+            href={currentTickerAd.link_url || "#"}
+            className="inline-flex items-center gap-2"
+            style={{
+              position: "absolute",
+              top: "50%",
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              animation: "ticker-scroll 9s linear 1",
+              transform: "translateY(-50%)",
+            }}
+          >
+            {currentTickerAd.content_type === "text" ? (
+              <span className="text-sm font-medium" style={{ color: T.sealDeep }}>{currentTickerAd.text_content}</span>
+            ) : (
+              <img src={currentTickerAd.url} alt="إعلان" className="rounded object-cover align-middle" style={{ height: 48, width: 192 }} />
+            )}
+          </a>
         </div>
       )}
 
