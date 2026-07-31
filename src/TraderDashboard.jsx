@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
-import { Package, Upload, Loader2, CheckCircle2, LogOut, FileSpreadsheet, AlertTriangle, Home, Store } from "lucide-react";
+import { Package, Upload, Loader2, CheckCircle2, LogOut, FileSpreadsheet, AlertTriangle, Home, Store, Eye, Trash2 } from "lucide-react";
 
 const T = {
   ink: "#14213B",
@@ -596,17 +596,34 @@ function AdsPanel({ session }) {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState(false);
 
+  const [viewCounts, setViewCounts] = useState({});
+  const [deletingId, setDeletingId] = useState(null);
+
   const load = () => {
     setLoading(true);
     Promise.all([
       supabase.from("ad_slots").select("*").eq("active", true),
       supabase.from("ad_bookings").select("*, ad_slots(name_ar)").eq("trader_id", session.user.id).order("created_at", { ascending: false }),
-    ]).then(([s, b]) => {
+    ]).then(async ([s, b]) => {
       setSlots(s.data || []);
       setBookings(b.data || []);
       setLoading(false);
       if (s.data?.length && !selectedSlot) setSelectedSlot(s.data[0].id);
+
+      const counts = {};
+      for (const booking of b.data || []) {
+        const { count } = await supabase.from("ad_impressions").select("id", { count: "exact", head: true }).eq("booking_id", booking.id);
+        counts[booking.id] = count || 0;
+      }
+      setViewCounts(counts);
     });
+  };
+
+  const deleteBooking = async (id) => {
+    setDeletingId(id);
+    await supabase.from("ad_bookings").delete().eq("id", id);
+    setDeletingId(null);
+    load();
   };
 
   useEffect(load, [session]);
@@ -771,17 +788,33 @@ function AdsPanel({ session }) {
                 <div>
                   <div className="text-xs font-medium" style={{ color: T.ink }}>{b.ad_slots?.name_ar}</div>
                   <div className="text-[11px]" style={{ color: T.sub }}>{b.start_date} → {b.end_date} · {b.total_price} ر.س</div>
+                  {b.status === "active" && (
+                    <div className="text-[11px] flex items-center gap-1 mt-0.5" style={{ color: T.sealDeep }}>
+                      <Eye size={11} /> {viewCounts[b.id] ?? 0} مشاهدة
+                    </div>
+                  )}
                 </div>
-                <span
-                  className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                  style={
-                    b.status === "active" ? { background: T.goodBg, color: T.good }
-                    : b.status === "rejected" ? { background: T.badBg, color: T.bad }
-                    : { background: "#FBF1DD", color: T.sealDeep }
-                  }
-                >
-                  {STATUS_LABELS[b.status] || b.status}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                    style={
+                      b.status === "active" ? { background: T.goodBg, color: T.good }
+                      : b.status === "rejected" ? { background: T.badBg, color: T.bad }
+                      : { background: "#FBF1DD", color: T.sealDeep }
+                    }
+                  >
+                    {STATUS_LABELS[b.status] || b.status}
+                  </span>
+                  <button
+                    onClick={() => { if (window.confirm("هل تريد حذف هذا الإعلان نهائياً؟")) deleteBooking(b.id); }}
+                    disabled={deletingId === b.id}
+                    title="حذف الإعلان"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ background: T.badBg, color: T.bad }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
