@@ -633,6 +633,14 @@ export default function ProductBrowse() {
   const [tab, setTab] = useState("browse");
   const [profile, setProfile] = useState(null);
   const [showWallet, setShowWallet] = useState(false);
+  const [appAd, setAppAd] = useState(null);
+
+  useEffect(() => {
+    supabase.rpc("get_active_ads", { p_placement: "customer_app" }).then(({ data }) => {
+      const b = (data || []).find((a) => a.slot_id === "app_banner");
+      if (b) setAppAd({ ...b, url: supabase.storage.from("ad-creatives").getPublicUrl(b.media_path).data.publicUrl });
+    });
+  }, []);
 
   useEffect(() => {
     if (session) {
@@ -780,6 +788,11 @@ export default function ProductBrowse() {
           <MyOrdersTab session={session} />
         ) : (
         <>
+        {appAd && (
+          <a href={appAd.link_url || "#"} className="block rounded-xl overflow-hidden mb-4" style={{ border: `1px solid ${T.line}` }}>
+            <img src={appAd.url} alt="إعلان" className="w-full object-cover" style={{ aspectRatio: "1000 / 250", maxHeight: 140 }} />
+          </a>
+        )}
         <div className="flex gap-2 mb-5">
           <div className="relative flex-1">
             <Search size={15} className="absolute top-1/2 -translate-y-1/2 right-3" style={{ color: T.sub }} />
