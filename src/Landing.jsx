@@ -35,7 +35,20 @@ function useFonts() {
     link.href =
       "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap";
     document.head.appendChild(link);
-    return () => document.head.removeChild(link);
+
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes ticker-scroll {
+        0% { transform: translateX(100%); }
+        100% { transform: translateX(-100%); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(link);
+      document.head.removeChild(style);
+    };
   }, []);
 }
 
@@ -155,7 +168,7 @@ export default function Landing() {
   const adFor = (slotId) => {
     const b = ads.find((a) => a.slot_id === slotId);
     if (!b) return null;
-    return { ...b, url: supabase.storage.from("ad-creatives").getPublicUrl(b.media_path).data.publicUrl };
+    return { ...b, url: b.media_path ? supabase.storage.from("ad-creatives").getPublicUrl(b.media_path).data.publicUrl : null };
   };
   const largeAd = adFor("banner_large");
   const squareAd = adFor("banner_square");
@@ -164,12 +177,13 @@ export default function Landing() {
   return (
     <div dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper, minHeight: "100vh" }}>
       {/* Header */}
-      <header className="px-6 md:px-10 py-4 flex items-center justify-between sticky top-0 z-40" style={{ background: T.paper, borderBottom: `1px solid ${T.line}` }}>
+      <header className="px-6 md:px-10 py-4 flex items-center justify-between sticky top-0 z-40" style={{ background: T.ink }}>
         <div className="flex items-center gap-2">
+          {/* عند توفر ملف الشعار، استبدل هذا الصندوق بـ <img src="/logo.png" className="w-9 h-9 rounded-md object-contain" /> */}
           <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
-          <span className="font-semibold text-[15px]" style={{ color: T.ink }}>أصناف الجملة</span>
+          <span className="font-semibold text-[15px]" style={{ color: "#fff" }}>أصناف الجملة</span>
         </div>
         <a
           href="/login"
@@ -179,6 +193,24 @@ export default function Landing() {
           <LogIn size={13} /> تسجيل الدخول
         </a>
       </header>
+
+      {tickerAd && (
+        <div style={{ background: T.paper, borderBottom: `1px solid ${T.line}` }}>
+          <div className="px-6 md:px-10 py-2 max-w-5xl mx-auto">
+            {tickerAd.content_type === "text" ? (
+              <a href={tickerAd.link_url || "#"} className="block overflow-hidden" style={{ textDecoration: "none" }}>
+                <div className="whitespace-nowrap text-sm font-medium" style={{ color: T.sealDeep, animation: "ticker-scroll 18s linear infinite" }}>
+                  {tickerAd.text_content}
+                </div>
+              </a>
+            ) : (
+              <a href={tickerAd.link_url || "#"} className="block rounded-lg overflow-hidden" style={{ border: `1px solid ${T.line}`, aspectRatio: "800 / 120", maxHeight: 90 }}>
+                <img src={tickerAd.url} alt="إعلان" className="w-full h-full object-cover" />
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Hero */}
       <section className="px-6 md:px-10 pt-14 pb-10 max-w-5xl mx-auto text-center">
@@ -200,13 +232,7 @@ export default function Landing() {
       </section>
 
       {/* Stats */}
-      {tickerAd && (
-        <section className="px-6 md:px-10 pb-4 max-w-5xl mx-auto">
-          <a href={tickerAd.link_url || "#"} className="block rounded-lg overflow-hidden" style={{ border: `1px solid ${T.line}`, aspectRatio: "800 / 120", maxHeight: 90 }}>
-            <img src={tickerAd.url} alt="إعلان" className="w-full h-full object-cover" />
-          </a>
-        </section>
-      )}
+      
 
       <section className="px-6 md:px-10 pb-10 max-w-5xl mx-auto">
         <StatsStrip stats={stats} />
