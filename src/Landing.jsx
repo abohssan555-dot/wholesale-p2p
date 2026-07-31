@@ -39,8 +39,8 @@ function useFonts() {
     const style = document.createElement("style");
     style.textContent = `
       @keyframes ticker-scroll {
-        0% { transform: translateX(-50%); }
-        100% { transform: translateX(0); }
+        from { transform: translateX(-100%); }
+        to { transform: translateX(0); }
       }
     `;
     document.head.appendChild(style);
@@ -198,19 +198,26 @@ export default function Landing() {
 
       {tickerAds.length > 0 && (
         <div style={{ background: T.paper, borderBottom: `1px solid ${T.line}`, overflow: "hidden" }}>
-          <div className="py-2.5" style={{ overflow: "hidden" }}>
-            <div className="flex items-center gap-8" style={{ width: "max-content", animation: `ticker-scroll ${Math.max(15, tickerAds.length * 8)}s linear infinite` }}>
-              {[...tickerAds, ...tickerAds].map((ad, i) => (
+          <div className="py-2.5" style={{ overflow: "hidden", width: "100%" }}>
+            <div
+              style={{
+                display: "inline-block",
+                whiteSpace: "nowrap",
+                paddingLeft: "100%",
+                animation: `ticker-scroll ${Math.max(15, tickerAds.length * 10)}s linear infinite`,
+              }}
+            >
+              {tickerAds.map((ad, i) => (
                 <a
                   key={`${ad.id}-${i}`}
                   href={ad.link_url || "#"}
-                  className="flex items-center gap-2 shrink-0"
-                  style={{ textDecoration: "none" }}
+                  className="inline-flex items-center gap-2"
+                  style={{ textDecoration: "none", marginLeft: 48 }}
                 >
                   {ad.content_type === "text" ? (
-                    <span className="text-sm font-medium whitespace-nowrap" style={{ color: T.sealDeep }}>{ad.text_content}</span>
+                    <span className="text-sm font-medium" style={{ color: T.sealDeep }}>{ad.text_content}</span>
                   ) : (
-                    <img src={ad.url} alt="إعلان" className="rounded object-cover" style={{ height: 60, width: 240 }} />
+                    <img src={ad.url} alt="إعلان" className="rounded object-cover align-middle" style={{ height: 60, width: 240 }} />
                   )}
                 </a>
               ))}
