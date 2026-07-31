@@ -211,16 +211,17 @@ export default function Landing() {
             className="flex items-center h-full"
             style={{
               width: "max-content",
+              gap: 64,
               animation: `ticker-scroll ${Math.max(20, tickerAds.length * 12)}s linear infinite`,
               animationPlayState: tickerPaused ? "paused" : "running",
             }}
           >
-            {[...tickerAds, ...tickerAds].map((ad, i) => (
+            {[...tickerAds, ...tickerAds, ...tickerAds, ...tickerAds].map((ad, i) => (
               <a
                 key={`${ad.id}-${i}`}
                 href={ad.link_url || "#"}
                 className="flex items-center shrink-0"
-                style={{ textDecoration: "none", marginLeft: 64 }}
+                style={{ textDecoration: "none" }}
               >
                 {ad.content_type === "text" ? (
                   <span className="text-sm font-medium whitespace-nowrap" style={{ color: T.sealDeep }}>{ad.text_content}</span>
