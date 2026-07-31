@@ -225,6 +225,8 @@ export default function Landing() {
             style={{
               position: "absolute",
               top: "50%",
+              left: 0,
+              right: "auto",
               whiteSpace: "nowrap",
               textDecoration: "none",
               animation: `ticker-scroll ${currentTickerAd.content_type === "text" ? Math.max(18, currentTickerAd.text_content.length * 0.25) : 14}s linear 1`,
