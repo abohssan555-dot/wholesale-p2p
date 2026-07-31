@@ -583,6 +583,186 @@ function WalletPanel({ session }) {
   );
 }
 
+function AdsPanel({ session }) {
+  const [slots, setSlots] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedSlot, setSelectedSlot] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [file, setFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      supabase.from("ad_slots").select("*").eq("active", true),
+      supabase.from("ad_bookings").select("*, ad_slots(name_ar)").eq("trader_id", session.user.id).order("created_at", { ascending: false }),
+    ]).then(([s, b]) => {
+      setSlots(s.data || []);
+      setBookings(b.data || []);
+      setLoading(false);
+      if (s.data?.length && !selectedSlot) setSelectedSlot(s.data[0].id);
+    });
+  };
+
+  useEffect(load, [session]);
+
+  const slot = slots.find((s) => s.id === selectedSlot);
+  const days = startDate && endDate ? Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)) : 0;
+  const estimatedPrice = slot && days ? (slot.price_per_day * days).toFixed(2) : "0.00";
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr("");
+    if (!file) {
+      setErr("يرجى اختيار صورة أو مقطع للإعلان.");
+      return;
+    }
+    if (!startDate || !endDate || days < 1) {
+      setErr("يرجى تحديد تاريخ بداية ونهاية صحيحين.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const ext = (file.name.split(".").pop() || "bin").replace(/[^a-zA-Z0-9]/g, "");
+      const path = `${session.user.id}/${selectedSlot}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("ad-creatives").upload(path, file);
+      if (upErr) throw upErr;
+
+      const { error: reqErr } = await supabase.rpc("request_ad_booking", {
+        p_slot_id: selectedSlot,
+        p_media_path: path,
+        p_link_url: linkUrl || null,
+        p_start_date: startDate,
+        p_end_date: endDate,
+      });
+      if (reqErr) throw reqErr;
+
+      setSuccess(true);
+      setFile(null);
+      setStartDate("");
+      setEndDate("");
+      setLinkUrl("");
+      load();
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) {
+      setErr(`حدث خطأ: ${e?.message || "غير معروف"}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const STATUS_LABELS = {
+    pending_payment: "بانتظار تأكيد السداد",
+    pending_review: "قيد المراجعة",
+    active: "نشط الآن",
+    rejected: "مرفوض",
+    expired: "منتهي",
+  };
+
+  if (loading) return <div className="text-sm text-center py-10" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl p-6" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+        <div className="text-sm font-semibold mb-1" style={{ color: T.ink }}>طلب حجز مساحة إعلانية</div>
+        <div className="text-xs mb-4" style={{ color: T.sub }}>اختر المساحة، ارفع الصورة أو المقطع، وحدد الفترة — يُنشر إعلانك بعد تأكيد سداد الرسوم من الإدارة.</div>
+
+        <form onSubmit={submit}>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>المساحة الإعلانية</label>
+          <select
+            value={selectedSlot}
+            onChange={(e) => setSelectedSlot(e.target.value)}
+            className="w-full text-sm rounded-lg py-2 px-3 mb-1 outline-none"
+            style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+          >
+            {slots.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name_ar} — {s.price_per_day} ر.س/يوم ({s.placement === "landing_page" ? "الصفحة الرئيسية" : "داخل تطبيق العملاء"})
+              </option>
+            ))}
+          </select>
+          {slot && <div className="text-[11px] mb-3" style={{ color: T.sub }}>{slot.description_ar}</div>}
+
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>تاريخ البداية</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+            </div>
+            <div>
+              <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>تاريخ النهاية</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+            </div>
+          </div>
+
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>رابط الإعلان عند الضغط عليه (اختياري)</label>
+          <input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." className="w-full text-sm rounded-lg py-2 px-3 mb-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الصورة أو المقطع</label>
+          <label
+            className="flex items-center gap-2 rounded-lg p-3 mb-3 cursor-pointer"
+            style={{ background: T.paper, border: `1px dashed ${T.line}` }}
+          >
+            <Upload size={16} style={{ color: T.sealDeep }} />
+            <span className="text-xs" style={{ color: T.sub }}>{file?.name || "اختيار ملف"}</span>
+            <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </label>
+
+          <div className="rounded-lg p-3 mb-3 flex items-center justify-between" style={{ background: "#FBF1DD" }}>
+            <span className="text-xs" style={{ color: T.sealDeep }}>السعر التقديري ({days || 0} يوم)</span>
+            <span className="text-sm font-semibold" style={{ color: T.sealDeep, fontFamily: "'JetBrains Mono', monospace" }}>{estimatedPrice} ر.س</span>
+          </div>
+
+          {err && <div className="text-xs mb-3" style={{ color: T.bad }}>{err}</div>}
+          {success && <div className="text-xs mb-3 flex items-center gap-1.5" style={{ color: T.good }}><CheckCircle2 size={13} /> تم إرسال طلب الحجز، بانتظار تأكيد السداد من الإدارة.</div>}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2"
+            style={{ background: T.ink, color: "#fff" }}
+          >
+            {submitting && <Loader2 size={14} className="animate-spin" />}
+            إرسال طلب الحجز
+          </button>
+        </form>
+      </div>
+
+      <div className="rounded-xl p-6" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+        <div className="text-sm font-semibold mb-3" style={{ color: T.ink }}>طلباتي الإعلانية ({bookings.length})</div>
+        {bookings.length === 0 ? (
+          <div className="text-xs text-center py-6" style={{ color: T.sub }}>لا توجد طلبات إعلانية بعد.</div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {bookings.map((b) => (
+              <div key={b.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+                <div>
+                  <div className="text-xs font-medium" style={{ color: T.ink }}>{b.ad_slots?.name_ar}</div>
+                  <div className="text-[11px]" style={{ color: T.sub }}>{b.start_date} → {b.end_date} · {b.total_price} ر.س</div>
+                </div>
+                <span
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  style={
+                    b.status === "active" ? { background: T.goodBg, color: T.good }
+                    : b.status === "rejected" ? { background: T.badBg, color: T.bad }
+                    : { background: "#FBF1DD", color: T.sealDeep }
+                  }
+                >
+                  {STATUS_LABELS[b.status] || b.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TraderDashboard() {
   useFonts();
   useIdleLogout(30);
@@ -704,10 +884,19 @@ export default function TraderDashboard() {
           >
             المحفظة
           </button>
+          <button
+            onClick={() => setView("ads")}
+            className="flex-1 text-xs font-medium py-2.5 rounded-lg"
+            style={{ background: view === "ads" ? T.seal : "#FBF1DD", color: view === "ads" ? T.ink : T.sealDeep, border: "1px solid #E8D5A8" }}
+          >
+            الإعلانات
+          </button>
         </div>
 
         {view === "wallet" ? (
           <WalletPanel session={session} />
+        ) : view === "ads" ? (
+          <AdsPanel session={session} />
         ) : (
         <>
         <div className="flex gap-2">
