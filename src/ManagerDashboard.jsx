@@ -413,7 +413,11 @@ function AdReviews() {
         <div className="flex flex-col gap-2">
           {bookings.map((b) => (
             <div key={b.id} className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-              {mediaUrls[b.id] && (
+              {b.content_type === "text" ? (
+                <div className="rounded-lg p-4 mb-3 flex items-center justify-center text-center" style={{ background: "#FBF1DD", border: `1px solid ${T.line}`, minHeight: 80 }}>
+                  <span className="text-sm font-medium" style={{ color: T.sealDeep }}>{b.text_content}</span>
+                </div>
+              ) : mediaUrls[b.id] && (
                 <div
                   className="rounded-lg overflow-hidden mb-3"
                   style={{
