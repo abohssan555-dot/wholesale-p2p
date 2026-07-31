@@ -20,6 +20,8 @@ import {
   Home,
   Database,
   Image as ImageIcon,
+  Eye,
+  Trash2,
   FileText,
   LogOut,
   Loader2,
@@ -338,6 +340,7 @@ function AdReviews() {
   const [busyId, setBusyId] = useState(null);
   const [refInput, setRefInput] = useState({});
   const [mediaUrls, setMediaUrls] = useState({});
+  const [viewCounts, setViewCounts] = useState({});
 
   const load = () => {
     setLoading(true);
@@ -350,17 +353,28 @@ function AdReviews() {
         setBookings(data || []);
         setLoading(false);
         const urls = {};
+        const counts = {};
         for (const b of data || []) {
           if (b.media_path) {
             const { data: signed } = await supabase.storage.from("ad-creatives").createSignedUrl(b.media_path, 3600);
             if (signed) urls[b.id] = signed.signedUrl;
           }
+          const { count } = await supabase.from("ad_impressions").select("id", { count: "exact", head: true }).eq("booking_id", b.id);
+          counts[b.id] = count || 0;
         }
         setMediaUrls(urls);
+        setViewCounts(counts);
       });
   };
 
   useEffect(load, []);
+
+  const deleteBooking = async (id) => {
+    setBusyId(id);
+    await supabase.from("ad_bookings").delete().eq("id", id);
+    setBusyId(null);
+    load();
+  };
 
   const approve = async (id) => {
     setBusyId(id);
@@ -424,6 +438,11 @@ function AdReviews() {
                   <div className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>
                     {b.start_date} → {b.end_date} · {b.total_price} ر.س
                   </div>
+                  {b.status === "active" && (
+                    <div className="text-[11px] flex items-center gap-1 mt-0.5" style={{ color: T.sealDeep }}>
+                      <Eye size={11} /> {viewCounts[b.id] ?? 0} مشاهدة
+                    </div>
+                  )}
                 </div>
                 <span
                   className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0"
@@ -435,6 +454,15 @@ function AdReviews() {
                 >
                   {STATUS_LABELS[b.status] || b.status}
                 </span>
+                <button
+                  onClick={() => { if (window.confirm("هل تريد حذف هذا الإعلان نهائياً؟")) deleteBooking(b.id); }}
+                  disabled={busyId === b.id}
+                  title="حذف الإعلان"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: T.badBg, color: T.bad }}
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
 
               {(b.status === "pending_payment" || b.status === "pending_review") && (
