@@ -62,9 +62,69 @@ function saveCart(items) {
   localStorage.setItem(CART_KEY, JSON.stringify(items));
 }
 
+function ComparePricesModal({ catalogId, productName, currentTraderId, onClose, onAdd }) {
+  const [offers, setOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("trader_listings")
+      .select("id, quantity, wholesale_price, trader_id, catalog_id, product_catalog!inner(name, status), profiles!trader_id(store_name, city)")
+      .eq("catalog_id", catalogId)
+      .eq("active", true)
+      .eq("product_catalog.status", "approved")
+      .order("wholesale_price", { ascending: true })
+      .then(({ data }) => {
+        setOffers(data || []);
+        setLoading(false);
+      });
+  }, [catalogId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(20,33,59,0.55)" }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl p-5 max-h-[80vh] overflow-y-auto" style={{ background: "#fff" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-semibold" style={{ color: T.ink }}>مقارنة أسعار — {productName}</span>
+          <button onClick={onClose}><X size={18} style={{ color: T.sub }} /></button>
+        </div>
+        <div className="text-[11px] mb-4" style={{ color: T.sub }}>مرتّبة من الأرخص للأغلى، من كل التجّار المتوفر عندهم هذا الصنف</div>
+
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="animate-spin" size={18} style={{ color: T.sealDeep }} /></div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {offers.map((o, i) => (
+              <div key={o.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: i === 0 ? T.goodBg : T.paper, border: `1px solid ${i === 0 ? "#BFE0CE" : T.line}` }}>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium flex items-center gap-1" style={{ color: T.ink }}>
+                    <Store size={11} style={{ color: T.sealDeep }} /> {o.profiles?.store_name || "متجر غير مسمّى"}
+                    {i === 0 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: T.good, color: "#fff" }}>الأرخص</span>}
+                  </div>
+                  <div className="text-[10px]" style={{ color: T.sub }}>{o.profiles?.city || ""} · متوفر: {o.quantity}</div>
+                </div>
+                <span className="text-sm font-semibold shrink-0" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{o.wholesale_price} ر.س</span>
+                <button
+                  onClick={() => { onAdd(o, 1); onClose(); }}
+                  disabled={o.quantity <= 0}
+                  className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg shrink-0"
+                  style={{ background: o.quantity <= 0 ? T.paperDeep : T.ink, color: o.quantity <= 0 ? T.sub : "#fff" }}
+                >
+                  إضافة
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProductRow({ listing, onAdd, inCart }) {
   const [qty, setQty] = useState(1);
+  const [showCompare, setShowCompare] = useState(false);
   return (
+    <>
     <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
       <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: T.paperDeep }}>
         <Package size={18} style={{ color: T.sealDeep }} />
@@ -74,6 +134,9 @@ function ProductRow({ listing, onAdd, inCart }) {
         <div className="text-[11px] flex items-center gap-1 mt-0.5" style={{ color: T.sub }}>
           <Store size={11} /> {listing.profiles?.store_name || "متجر غير مسمّى"} · {listing.profiles?.city || ""}
         </div>
+        <button onClick={() => setShowCompare(true)} className="text-[10px] font-medium mt-1 underline" style={{ color: T.sealDeep }}>
+          قارن مع تجّار آخرين
+        </button>
       </div>
       <div className="text-left shrink-0">
         <div className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
@@ -107,6 +170,16 @@ function ProductRow({ listing, onAdd, inCart }) {
         {listing.quantity <= 0 ? "غير متوفر" : inCart ? "أُضيف" : "إضافة"}
       </button>
     </div>
+    {showCompare && (
+      <ComparePricesModal
+        catalogId={listing.catalog_id}
+        productName={listing.product_catalog.name}
+        currentTraderId={listing.trader_id}
+        onClose={() => setShowCompare(false)}
+        onAdd={onAdd}
+      />
+    )}
+    </>
   );
 }
 
