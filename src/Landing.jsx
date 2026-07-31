@@ -39,8 +39,8 @@ function useFonts() {
     const style = document.createElement("style");
     style.textContent = `
       @keyframes ticker-scroll {
-        0% { transform: translateX(-100vw); }
-        100% { transform: translateX(100vw); }
+        0% { transform: translate(-100vw, -50%); }
+        100% { transform: translate(100vw, -50%); }
       }
     `;
     document.head.appendChild(style);
@@ -179,11 +179,13 @@ export default function Landing() {
 
   useEffect(() => {
     if (tickerAds.length < 2) return;
-    const interval = setInterval(() => {
+    const current = tickerAds[tickerIndex % tickerAds.length];
+    const durationMs = (current?.content_type === "text" ? Math.max(18, current.text_content.length * 0.25) : 14) * 1000;
+    const t = setTimeout(() => {
       setTickerIndex((i) => (i + 1) % tickerAds.length);
-    }, 9000);
-    return () => clearInterval(interval);
-  }, [tickerAds.length]);
+    }, durationMs);
+    return () => clearTimeout(t);
+  }, [tickerIndex, tickerAds.length]);
 
   const currentTickerAd = tickerAds[tickerIndex % Math.max(tickerAds.length, 1)];
 
@@ -218,8 +220,7 @@ export default function Landing() {
               top: "50%",
               whiteSpace: "nowrap",
               textDecoration: "none",
-              animation: "ticker-scroll 9s linear 1",
-              transform: "translateY(-50%)",
+              animation: `ticker-scroll ${currentTickerAd.content_type === "text" ? Math.max(18, currentTickerAd.text_content.length * 0.25) : 14}s linear 1`,
             }}
           >
             {currentTickerAd.content_type === "text" ? (
