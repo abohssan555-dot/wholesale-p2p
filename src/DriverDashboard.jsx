@@ -235,6 +235,9 @@ function DriverWalletPanel({ session }) {
               {e.settlement_reference && (
                 <div className="text-[11px] mt-1" style={{ color: T.good }}>مرجع التحويل: {e.settlement_reference}</div>
               )}
+              <div className="text-[10px] mt-1" style={{ color: T.sub }}>
+                رسوم التوصيل: {e.delivery_fee} ر.س − عمولة المنصة (10%) = {e.driver_payable} ر.س
+              </div>
             </div>
             <div className="text-left shrink-0">
               <div className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{e.driver_payable} ر.س</div>
