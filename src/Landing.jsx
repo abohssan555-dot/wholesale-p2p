@@ -39,8 +39,8 @@ function useFonts() {
     const style = document.createElement("style");
     style.textContent = `
       @keyframes ticker-scroll {
-        0% { transform: translate(-60vw, -50%); }
-        100% { transform: translate(60vw, -50%); }
+        0% { transform: translate(-40vw, -50%); }
+        100% { transform: translate(110vw, -50%); }
       }
     `;
     document.head.appendChild(style);
@@ -155,6 +155,7 @@ export default function Landing() {
   const [ads, setAds] = useState([]);
   const [tickerIndex, setTickerIndex] = useState(0);
   const [tickerPaused, setTickerPaused] = useState(false);
+  const [tickerCycle, setTickerCycle] = useState(0);
 
   useEffect(() => {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
@@ -178,17 +179,11 @@ export default function Landing() {
     .filter((a) => a.slot_id === "ticker")
     .map((a) => ({ ...a, url: a.media_path ? supabase.storage.from("ad-creatives").getPublicUrl(a.media_path).data.publicUrl : null }));
 
-  useEffect(() => {
-    if (tickerAds.length < 2 || tickerPaused) return;
-    const current = tickerAds[tickerIndex % tickerAds.length];
-    const durationMs = (current?.content_type === "text" ? Math.max(18, current.text_content.length * 0.25) : 14) * 1000;
-    const t = setTimeout(() => {
-      setTickerIndex((i) => (i + 1) % tickerAds.length);
-    }, durationMs);
-    return () => clearTimeout(t);
-  }, [tickerIndex, tickerAds.length, tickerPaused]);
-
   const currentTickerAd = tickerAds[tickerIndex % Math.max(tickerAds.length, 1)];
+  const advanceTicker = () => {
+    setTickerCycle((c) => c + 1);
+    if (tickerAds.length > 1) setTickerIndex((i) => (i + 1) % tickerAds.length);
+  };
 
   return (
     <div dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper, minHeight: "100vh" }}>
@@ -219,9 +214,10 @@ export default function Landing() {
           onTouchEnd={() => setTickerPaused(false)}
         >
           <a
-            key={currentTickerAd.id + "-" + tickerIndex}
+            key={currentTickerAd.id + "-" + tickerCycle}
             href={currentTickerAd.link_url || "#"}
             className="inline-flex items-center gap-2"
+            onAnimationEnd={advanceTicker}
             style={{
               position: "absolute",
               top: "50%",
@@ -229,7 +225,7 @@ export default function Landing() {
               right: "auto",
               whiteSpace: "nowrap",
               textDecoration: "none",
-              animation: `ticker-scroll ${currentTickerAd.content_type === "text" ? Math.max(18, currentTickerAd.text_content.length * 0.25) : 14}s linear 1`,
+              animation: `ticker-scroll ${currentTickerAd.content_type === "text" ? Math.max(22, currentTickerAd.text_content.length * 0.32) : 18}s linear 1`,
               animationPlayState: tickerPaused ? "paused" : "running",
             }}
           >
