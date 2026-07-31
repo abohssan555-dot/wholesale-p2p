@@ -343,7 +343,7 @@ function AdReviews() {
     setLoading(true);
     supabase
       .from("ad_bookings")
-      .select("*, profiles!trader_id(store_name, full_name), ad_slots(name_ar)")
+      .select("*, profiles!trader_id(store_name, full_name), ad_slots(name_ar, recommended_width, recommended_height)")
       .order("status", { ascending: true })
       .order("created_at", { ascending: false })
       .then(async ({ data }) => {
@@ -399,10 +399,24 @@ function AdReviews() {
         <div className="flex flex-col gap-2">
           {bookings.map((b) => (
             <div key={b.id} className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+              {mediaUrls[b.id] && (
+                <div
+                  className="rounded-lg overflow-hidden mb-3"
+                  style={{
+                    background: T.paper,
+                    border: `1px solid ${T.line}`,
+                    aspectRatio: `${b.ad_slots?.recommended_width || 16} / ${b.ad_slots?.recommended_height || 9}`,
+                    maxHeight: 260,
+                  }}
+                >
+                  {mediaUrls[b.id].match(/\.(mp4|webm|mov)(\?|$)/i) ? (
+                    <video src={mediaUrls[b.id]} className="w-full h-full object-cover" muted controls />
+                  ) : (
+                    <img src={mediaUrls[b.id]} alt="" className="w-full h-full object-cover" />
+                  )}
+                </div>
+              )}
               <div className="flex items-center gap-4">
-                {mediaUrls[b.id] && (
-                  <img src={mediaUrls[b.id]} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" style={{ border: `1px solid ${T.line}` }} />
-                )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium" style={{ color: T.ink }}>
                     {b.profiles?.store_name || b.profiles?.full_name || "—"} · {b.ad_slots?.name_ar}
