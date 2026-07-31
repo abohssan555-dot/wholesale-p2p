@@ -638,7 +638,10 @@ export default function ProductBrowse() {
   useEffect(() => {
     supabase.rpc("get_active_ads", { p_placement: "customer_app" }).then(({ data }) => {
       const b = (data || []).find((a) => a.slot_id === "app_banner");
-      if (b) setAppAd({ ...b, url: supabase.storage.from("ad-creatives").getPublicUrl(b.media_path).data.publicUrl });
+      if (b) {
+        setAppAd({ ...b, url: supabase.storage.from("ad-creatives").getPublicUrl(b.media_path).data.publicUrl });
+        supabase.rpc("log_ad_view", { p_booking_id: b.id });
+      }
     });
   }, []);
 
