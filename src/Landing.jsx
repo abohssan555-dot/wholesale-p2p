@@ -39,8 +39,8 @@ function useFonts() {
     const style = document.createElement("style");
     style.textContent = `
       @keyframes ticker-scroll {
-        0% { transform: translate(-40vw, -50%); }
-        100% { transform: translate(110vw, -50%); }
+        0% { transform: translateX(-50%); }
+        100% { transform: translateX(0); }
       }
     `;
     document.head.appendChild(style);
@@ -153,9 +153,7 @@ export default function Landing() {
   const [showPopup, setShowPopup] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
   const [ads, setAds] = useState([]);
-  const [tickerIndex, setTickerIndex] = useState(0);
   const [tickerPaused, setTickerPaused] = useState(false);
-  const [tickerCycle, setTickerCycle] = useState(0);
 
   useEffect(() => {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
@@ -179,11 +177,7 @@ export default function Landing() {
     .filter((a) => a.slot_id === "ticker")
     .map((a) => ({ ...a, url: a.media_path ? supabase.storage.from("ad-creatives").getPublicUrl(a.media_path).data.publicUrl : null }));
 
-  const currentTickerAd = tickerAds[tickerIndex % Math.max(tickerAds.length, 1)];
-  const advanceTicker = () => {
-    setTickerCycle((c) => c + 1);
-    if (tickerAds.length > 1) setTickerIndex((i) => (i + 1) % tickerAds.length);
-  };
+
 
   return (
     <div dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper, minHeight: "100vh" }}>
@@ -205,36 +199,37 @@ export default function Landing() {
         </a>
       </header>
 
-      {currentTickerAd && (
+      {tickerAds.length > 0 && (
         <div
-          style={{ background: T.paper, borderBottom: `1px solid ${T.line}`, overflow: "hidden", position: "relative", height: 56 }}
+          style={{ background: T.paper, borderBottom: `1px solid ${T.line}`, overflow: "hidden", height: 56 }}
           onMouseEnter={() => setTickerPaused(true)}
           onMouseLeave={() => setTickerPaused(false)}
           onTouchStart={() => setTickerPaused(true)}
           onTouchEnd={() => setTickerPaused(false)}
         >
-          <a
-            key={currentTickerAd.id + "-" + tickerCycle}
-            href={currentTickerAd.link_url || "#"}
-            className="inline-flex items-center gap-2"
-            onAnimationEnd={advanceTicker}
+          <div
+            className="flex items-center h-full"
             style={{
-              position: "absolute",
-              top: "50%",
-              left: 0,
-              right: "auto",
-              whiteSpace: "nowrap",
-              textDecoration: "none",
-              animation: `ticker-scroll ${currentTickerAd.content_type === "text" ? Math.max(22, currentTickerAd.text_content.length * 0.32) : 18}s linear 1`,
+              width: "max-content",
+              animation: `ticker-scroll ${Math.max(20, tickerAds.length * 12)}s linear infinite`,
               animationPlayState: tickerPaused ? "paused" : "running",
             }}
           >
-            {currentTickerAd.content_type === "text" ? (
-              <span className="text-sm font-medium" style={{ color: T.sealDeep }}>{currentTickerAd.text_content}</span>
-            ) : (
-              <img src={currentTickerAd.url} alt="إعلان" className="rounded object-cover align-middle" style={{ height: 48, width: 192 }} />
-            )}
-          </a>
+            {[...tickerAds, ...tickerAds].map((ad, i) => (
+              <a
+                key={`${ad.id}-${i}`}
+                href={ad.link_url || "#"}
+                className="flex items-center shrink-0"
+                style={{ textDecoration: "none", marginLeft: 64 }}
+              >
+                {ad.content_type === "text" ? (
+                  <span className="text-sm font-medium whitespace-nowrap" style={{ color: T.sealDeep }}>{ad.text_content}</span>
+                ) : (
+                  <img src={ad.url} alt="إعلان" className="rounded object-cover" style={{ height: 44, width: 176 }} />
+                )}
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
