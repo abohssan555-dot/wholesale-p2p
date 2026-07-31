@@ -139,12 +139,22 @@ export default function Landing() {
   const [stats, setStats] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
+  const [ads, setAds] = useState([]);
 
   useEffect(() => {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
+    supabase.rpc("get_active_ads", { p_placement: "landing_page" }).then(({ data }) => setAds(data || []));
     const t = setTimeout(() => setShowPopup(true), 2500);
     return () => clearTimeout(t);
   }, []);
+
+  const adFor = (slotId) => {
+    const b = ads.find((a) => a.slot_id === slotId);
+    if (!b) return null;
+    return { ...b, url: supabase.storage.from("ad-creatives").getPublicUrl(b.media_path).data.publicUrl };
+  };
+  const largeAd = adFor("banner_large");
+  const squareAd = adFor("banner_square");
 
   return (
     <div dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper, minHeight: "100vh" }}>
@@ -196,23 +206,39 @@ export default function Landing() {
           <span className="text-sm font-semibold" style={{ color: T.ink }}>إعلانات التجّار</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div
-            className="md:col-span-2 rounded-xl p-6 flex items-center gap-4"
-            style={{ background: "linear-gradient(90deg, #FBF1DD, #F6F3EC)", border: `1px dashed ${T.seal}` }}
-          >
-            <Megaphone size={24} style={{ color: T.sealDeep }} className="shrink-0" />
-            <div className="flex-1">
-              <div className="text-sm font-semibold" style={{ color: T.ink }}>مساحة إعلانية مميزة — بانر كبير</div>
-              <div className="text-xs mt-1" style={{ color: T.sub }}>يُحجز من لوحة تحكم التاجر بمقاسات وأسعار مختلفة، ويظهر هنا لكل زوار المنصة.</div>
-            </div>
-            <a href="/trader" className="text-xs font-medium px-3 py-2 rounded-lg shrink-0" style={{ background: T.ink, color: "#fff", textDecoration: "none" }}>
-              احجز مساحتك
+          {largeAd ? (
+            <a
+              href={largeAd.link_url || "#"}
+              className="md:col-span-2 rounded-xl overflow-hidden block"
+              style={{ border: `1px solid ${T.line}` }}
+            >
+              <img src={largeAd.url} alt="إعلان" className="w-full h-full object-cover" style={{ aspectRatio: "1200 / 300" }} />
             </a>
-          </div>
-          <div className="rounded-xl p-6 flex flex-col items-center justify-center text-center gap-2" style={{ background: T.paperDeep, border: `1px dashed ${T.line}` }}>
-            <Megaphone size={20} style={{ color: T.sub }} />
-            <div className="text-xs" style={{ color: T.sub }}>مساحة إعلانية مربّعة — متاحة للحجز</div>
-          </div>
+          ) : (
+            <div
+              className="md:col-span-2 rounded-xl p-6 flex items-center gap-4"
+              style={{ background: "linear-gradient(90deg, #FBF1DD, #F6F3EC)", border: `1px dashed ${T.seal}` }}
+            >
+              <Megaphone size={24} style={{ color: T.sealDeep }} className="shrink-0" />
+              <div className="flex-1">
+                <div className="text-sm font-semibold" style={{ color: T.ink }}>مساحة إعلانية مميزة — بانر كبير</div>
+                <div className="text-xs mt-1" style={{ color: T.sub }}>يُحجز من لوحة تحكم التاجر بمقاسات وأسعار مختلفة، ويظهر هنا لكل زوار المنصة.</div>
+              </div>
+              <a href="/trader" className="text-xs font-medium px-3 py-2 rounded-lg shrink-0" style={{ background: T.ink, color: "#fff", textDecoration: "none" }}>
+                احجز مساحتك
+              </a>
+            </div>
+          )}
+          {squareAd ? (
+            <a href={squareAd.link_url || "#"} className="rounded-xl overflow-hidden block" style={{ border: `1px solid ${T.line}` }}>
+              <img src={squareAd.url} alt="إعلان" className="w-full h-full object-cover" style={{ aspectRatio: "1 / 1" }} />
+            </a>
+          ) : (
+            <div className="rounded-xl p-6 flex flex-col items-center justify-center text-center gap-2" style={{ background: T.paperDeep, border: `1px dashed ${T.line}` }}>
+              <Megaphone size={20} style={{ color: T.sub }} />
+              <div className="text-xs" style={{ color: T.sub }}>مساحة إعلانية مربّعة — متاحة للحجز</div>
+            </div>
+          )}
         </div>
       </section>
 
