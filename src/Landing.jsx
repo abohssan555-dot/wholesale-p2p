@@ -210,9 +210,9 @@ export default function Landing() {
             <a
               href={largeAd.link_url || "#"}
               className="md:col-span-2 rounded-xl overflow-hidden block"
-              style={{ border: `1px solid ${T.line}` }}
+              style={{ border: `1px solid ${T.line}`, aspectRatio: "1200 / 300" }}
             >
-              <img src={largeAd.url} alt="إعلان" className="w-full h-full object-cover" style={{ aspectRatio: "1200 / 300" }} />
+              <img src={largeAd.url} alt="إعلان" className="w-full h-full object-cover" />
             </a>
           ) : (
             <div
@@ -230,8 +230,8 @@ export default function Landing() {
             </div>
           )}
           {squareAd ? (
-            <a href={squareAd.link_url || "#"} className="rounded-xl overflow-hidden block" style={{ border: `1px solid ${T.line}` }}>
-              <img src={squareAd.url} alt="إعلان" className="w-full h-full object-cover" style={{ aspectRatio: "1 / 1" }} />
+            <a href={squareAd.link_url || "#"} className="rounded-xl overflow-hidden block" style={{ border: `1px solid ${T.line}`, aspectRatio: "1 / 1" }}>
+              <img src={squareAd.url} alt="إعلان" className="w-full h-full object-cover" />
             </a>
           ) : (
             <div className="rounded-xl p-6 flex flex-col items-center justify-center text-center gap-2" style={{ background: T.paperDeep, border: `1px dashed ${T.line}` }}>
