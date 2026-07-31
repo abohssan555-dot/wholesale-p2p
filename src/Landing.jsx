@@ -145,7 +145,8 @@ export default function Landing() {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
     supabase.rpc("get_active_ads", { p_placement: "landing_page" }).then(({ data }) => {
       setAds(data || []);
-      (data || []).forEach((a) => supabase.rpc("log_ad_view", { p_booking_id: a.id }));
+      const displayedSlots = ["banner_large", "banner_square", "ticker"];
+      (data || []).filter((a) => displayedSlots.includes(a.slot_id)).forEach((a) => supabase.rpc("log_ad_view", { p_booking_id: a.id }));
     });
     const t = setTimeout(() => setShowPopup(true), 2500);
     return () => clearTimeout(t);
@@ -158,6 +159,7 @@ export default function Landing() {
   };
   const largeAd = adFor("banner_large");
   const squareAd = adFor("banner_square");
+  const tickerAd = adFor("ticker");
 
   return (
     <div dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper, minHeight: "100vh" }}>
@@ -198,6 +200,14 @@ export default function Landing() {
       </section>
 
       {/* Stats */}
+      {tickerAd && (
+        <section className="px-6 md:px-10 pb-4 max-w-5xl mx-auto">
+          <a href={tickerAd.link_url || "#"} className="block rounded-lg overflow-hidden" style={{ border: `1px solid ${T.line}`, aspectRatio: "800 / 120", maxHeight: 90 }}>
+            <img src={tickerAd.url} alt="إعلان" className="w-full h-full object-cover" />
+          </a>
+        </section>
+      )}
+
       <section className="px-6 md:px-10 pb-10 max-w-5xl mx-auto">
         <StatsStrip stats={stats} />
       </section>
