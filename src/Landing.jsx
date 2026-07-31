@@ -39,8 +39,8 @@ function useFonts() {
     const style = document.createElement("style");
     style.textContent = `
       @keyframes ticker-scroll {
-        0% { transform: translateX(100%); }
-        100% { transform: translateX(-100%); }
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
       }
     `;
     document.head.appendChild(style);
@@ -172,7 +172,9 @@ export default function Landing() {
   };
   const largeAd = adFor("banner_large");
   const squareAd = adFor("banner_square");
-  const tickerAd = adFor("ticker");
+  const tickerAds = ads
+    .filter((a) => a.slot_id === "ticker")
+    .map((a) => ({ ...a, url: a.media_path ? supabase.storage.from("ad-creatives").getPublicUrl(a.media_path).data.publicUrl : null }));
 
   return (
     <div dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper, minHeight: "100vh" }}>
@@ -194,20 +196,25 @@ export default function Landing() {
         </a>
       </header>
 
-      {tickerAd && (
-        <div style={{ background: T.paper, borderBottom: `1px solid ${T.line}` }}>
-          <div className="px-6 md:px-10 py-2 max-w-5xl mx-auto">
-            {tickerAd.content_type === "text" ? (
-              <a href={tickerAd.link_url || "#"} className="block overflow-hidden" style={{ textDecoration: "none" }}>
-                <div className="whitespace-nowrap text-sm font-medium" style={{ color: T.sealDeep, animation: "ticker-scroll 18s linear infinite" }}>
-                  {tickerAd.text_content}
-                </div>
-              </a>
-            ) : (
-              <a href={tickerAd.link_url || "#"} className="block rounded-lg overflow-hidden" style={{ border: `1px solid ${T.line}`, aspectRatio: "800 / 120", maxHeight: 90 }}>
-                <img src={tickerAd.url} alt="إعلان" className="w-full h-full object-cover" />
-              </a>
-            )}
+      {tickerAds.length > 0 && (
+        <div style={{ background: T.paper, borderBottom: `1px solid ${T.line}`, overflow: "hidden" }}>
+          <div className="py-2.5" style={{ overflow: "hidden" }}>
+            <div className="flex items-center gap-8" style={{ width: "max-content", animation: `ticker-scroll ${Math.max(15, tickerAds.length * 8)}s linear infinite` }}>
+              {[...tickerAds, ...tickerAds].map((ad, i) => (
+                <a
+                  key={`${ad.id}-${i}`}
+                  href={ad.link_url || "#"}
+                  className="flex items-center gap-2 shrink-0"
+                  style={{ textDecoration: "none" }}
+                >
+                  {ad.content_type === "text" ? (
+                    <span className="text-sm font-medium whitespace-nowrap" style={{ color: T.sealDeep }}>{ad.text_content}</span>
+                  ) : (
+                    <img src={ad.url} alt="إعلان" className="rounded object-cover" style={{ height: 60, width: 240 }} />
+                  )}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       )}
