@@ -592,6 +592,8 @@ function AdsPanel({ session }) {
   const [endDate, setEndDate] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [file, setFile] = useState(null);
+  const [contentType, setContentType] = useState("image");
+  const [textContent, setTextContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState(false);
@@ -634,11 +636,17 @@ function AdsPanel({ session }) {
   const filePreviewUrl = file ? URL.createObjectURL(file) : null;
   const isVideo = file && file.type.startsWith("video");
 
+  const isTickerSlot = selectedSlot === "ticker" || selectedSlot === "app_ticker";
+
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
-    if (!file) {
+    if (contentType === "image" && !file) {
       setErr("يرجى اختيار صورة أو مقطع للإعلان.");
+      return;
+    }
+    if (contentType === "text" && !textContent.trim()) {
+      setErr("يرجى كتابة نص الإعلان.");
       return;
     }
     if (!startDate || !endDate || days < 1) {
@@ -647,10 +655,13 @@ function AdsPanel({ session }) {
     }
     setSubmitting(true);
     try {
-      const ext = (file.name.split(".").pop() || "bin").replace(/[^a-zA-Z0-9]/g, "");
-      const path = `${session.user.id}/${selectedSlot}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("ad-creatives").upload(path, file);
-      if (upErr) throw upErr;
+      let path = null;
+      if (contentType === "image") {
+        const ext = (file.name.split(".").pop() || "bin").replace(/[^a-zA-Z0-9]/g, "");
+        path = `${session.user.id}/${selectedSlot}-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("ad-creatives").upload(path, file);
+        if (upErr) throw upErr;
+      }
 
       const { error: reqErr } = await supabase.rpc("request_ad_booking", {
         p_slot_id: selectedSlot,
@@ -658,11 +669,14 @@ function AdsPanel({ session }) {
         p_link_url: linkUrl || null,
         p_start_date: startDate,
         p_end_date: endDate,
+        p_content_type: contentType,
+        p_text_content: contentType === "text" ? textContent.trim() : null,
       });
       if (reqErr) throw reqErr;
 
       setSuccess(true);
       setFile(null);
+      setTextContent("");
       setStartDate("");
       setEndDate("");
       setLinkUrl("");
@@ -721,40 +735,78 @@ function AdsPanel({ session }) {
           <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>رابط الإعلان عند الضغط عليه (اختياري)</label>
           <input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." className="w-full text-sm rounded-lg py-2 px-3 mb-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
 
-          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الصورة أو المقطع</label>
-          {slot?.recommended_width && (
-            <div className="text-[11px] mb-1.5" style={{ color: T.sealDeep }}>
-              المقاس الموصى به لهذه المساحة: {slot.recommended_width} × {slot.recommended_height} بكسل (نفس النسبة تقريباً حتى لا يظهر الإعلان مشوَّهاً أو مقصوصاً)
+          {isTickerSlot && (
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setContentType("image")}
+                className="flex-1 text-xs font-medium py-2 rounded-lg"
+                style={{ background: contentType === "image" ? T.ink : T.paper, color: contentType === "image" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+              >
+                صورة
+              </button>
+              <button
+                type="button"
+                onClick={() => setContentType("text")}
+                className="flex-1 text-xs font-medium py-2 rounded-lg"
+                style={{ background: contentType === "text" ? T.ink : T.paper, color: contentType === "text" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+              >
+                نص متحرك
+              </button>
             </div>
           )}
-          <label
-            className="flex items-center gap-2 rounded-lg p-3 mb-3 cursor-pointer"
-            style={{ background: T.paper, border: `1px dashed ${T.line}` }}
-          >
-            <Upload size={16} style={{ color: T.sealDeep }} />
-            <span className="text-xs" style={{ color: T.sub }}>{file?.name || "اختيار ملف"}</span>
-            <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          </label>
 
-          {filePreviewUrl && slot && (
+          {contentType === "text" && isTickerSlot ? (
             <div className="mb-3">
-              <div className="text-[11px] font-medium mb-1" style={{ color: T.sub }}>معاينة كيف سيظهر الإعلان تقريباً:</div>
-              <div
-                className="rounded-lg overflow-hidden flex items-center justify-center"
-                style={{
-                  background: T.paperDeep,
-                  border: `1px solid ${T.line}`,
-                  aspectRatio: `${slot.recommended_width || 16} / ${slot.recommended_height || 9}`,
-                  maxHeight: 220,
-                }}
-              >
-                {isVideo ? (
-                  <video src={filePreviewUrl} className="w-full h-full object-cover" muted autoPlay loop />
-                ) : (
-                  <img src={filePreviewUrl} alt="معاينة" className="w-full h-full object-cover" />
-                )}
-              </div>
+              <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>نص الإعلان (حتى 120 حرف)</label>
+              <textarea
+                value={textContent}
+                onChange={(e) => setTextContent(e.target.value.slice(0, 120))}
+                rows={2}
+                placeholder="مثال: عروض هذا الأسبوع على المعلبات — تواصل معنا الآن!"
+                className="w-full text-sm rounded-lg py-2 px-3 outline-none"
+                style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+              />
+              <div className="text-[11px] text-left mt-1" style={{ color: T.sub }}>{textContent.length} / 120</div>
             </div>
+          ) : (
+            <>
+              <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الصورة أو المقطع</label>
+              {slot?.recommended_width && (
+                <div className="text-[11px] mb-1.5" style={{ color: T.sealDeep }}>
+                  المقاس الموصى به لهذه المساحة: {slot.recommended_width} × {slot.recommended_height} بكسل (نفس النسبة تقريباً حتى لا يظهر الإعلان مشوَّهاً أو مقصوصاً)
+                </div>
+              )}
+              <label
+                className="flex items-center gap-2 rounded-lg p-3 mb-3 cursor-pointer"
+                style={{ background: T.paper, border: `1px dashed ${T.line}` }}
+              >
+                <Upload size={16} style={{ color: T.sealDeep }} />
+                <span className="text-xs" style={{ color: T.sub }}>{file?.name || "اختيار ملف"}</span>
+                <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              </label>
+
+              {filePreviewUrl && slot && (
+                <div className="mb-3">
+                  <div className="text-[11px] font-medium mb-1" style={{ color: T.sub }}>معاينة كيف سيظهر الإعلان تقريباً:</div>
+                  <div
+                    className="rounded-lg overflow-hidden flex items-center justify-center"
+                    style={{
+                      background: T.paperDeep,
+                      border: `1px solid ${T.line}`,
+                      aspectRatio: `${slot.recommended_width || 16} / ${slot.recommended_height || 9}`,
+                      maxHeight: 220,
+                    }}
+                  >
+                    {isVideo ? (
+                      <video src={filePreviewUrl} className="w-full h-full object-cover" muted autoPlay loop />
+                    ) : (
+                      <img src={filePreviewUrl} alt="معاينة" className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <div className="rounded-lg p-3 mb-3 flex items-center justify-between" style={{ background: "#FBF1DD" }}>
