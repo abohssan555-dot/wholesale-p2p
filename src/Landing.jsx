@@ -39,8 +39,8 @@ function useFonts() {
     const style = document.createElement("style");
     style.textContent = `
       @keyframes ticker-scroll {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
+        0% { transform: translateX(-50%); }
+        100% { transform: translateX(0); }
       }
     `;
     document.head.appendChild(style);
