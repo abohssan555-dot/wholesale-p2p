@@ -154,6 +154,8 @@ export default function Landing() {
   const [showRoles, setShowRoles] = useState(false);
   const [ads, setAds] = useState([]);
   const [tickerPaused, setTickerPaused] = useState(false);
+  const [tickerHalfWidth, setTickerHalfWidth] = useState(0);
+  const tickerTrackRef = React.useRef(null);
 
   useEffect(() => {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
@@ -177,6 +179,14 @@ export default function Landing() {
     .filter((a) => a.slot_id === "ticker")
     .map((a) => ({ ...a, url: a.media_path ? supabase.storage.from("ad-creatives").getPublicUrl(a.media_path).data.publicUrl : null }));
 
+  useEffect(() => {
+    if (tickerAds.length === 0) return;
+    const measure = () => {
+      if (tickerTrackRef.current) setTickerHalfWidth(tickerTrackRef.current.scrollWidth / 2);
+    };
+    const t = setTimeout(measure, 200); // نعطي الصور فرصة تتحمّل قبل القياس
+    return () => clearTimeout(t);
+  }, [tickerAds.length]);
 
 
   return (
@@ -208,11 +218,12 @@ export default function Landing() {
           onTouchEnd={() => setTickerPaused(false)}
         >
           <div
+            ref={tickerTrackRef}
             className="flex items-center h-full"
             style={{
               width: "max-content",
               gap: 64,
-              animation: `ticker-scroll ${Math.max(20, tickerAds.length * 12)}s linear infinite`,
+              animation: tickerHalfWidth ? `ticker-scroll ${tickerHalfWidth / 55}s linear infinite` : "none",
               animationPlayState: tickerPaused ? "paused" : "running",
             }}
           >
