@@ -39,8 +39,8 @@ function useFonts() {
     const style = document.createElement("style");
     style.textContent = `
       @keyframes ticker-scroll {
-        0% { transform: translate(-100vw, -50%); }
-        100% { transform: translate(100vw, -50%); }
+        0% { transform: translate(-60vw, -50%); }
+        100% { transform: translate(60vw, -50%); }
       }
     `;
     document.head.appendChild(style);
@@ -154,6 +154,7 @@ export default function Landing() {
   const [showRoles, setShowRoles] = useState(false);
   const [ads, setAds] = useState([]);
   const [tickerIndex, setTickerIndex] = useState(0);
+  const [tickerPaused, setTickerPaused] = useState(false);
 
   useEffect(() => {
     supabase.rpc("public_platform_stats").then(({ data }) => setStats(data));
@@ -178,14 +179,14 @@ export default function Landing() {
     .map((a) => ({ ...a, url: a.media_path ? supabase.storage.from("ad-creatives").getPublicUrl(a.media_path).data.publicUrl : null }));
 
   useEffect(() => {
-    if (tickerAds.length < 2) return;
+    if (tickerAds.length < 2 || tickerPaused) return;
     const current = tickerAds[tickerIndex % tickerAds.length];
     const durationMs = (current?.content_type === "text" ? Math.max(18, current.text_content.length * 0.25) : 14) * 1000;
     const t = setTimeout(() => {
       setTickerIndex((i) => (i + 1) % tickerAds.length);
     }, durationMs);
     return () => clearTimeout(t);
-  }, [tickerIndex, tickerAds.length]);
+  }, [tickerIndex, tickerAds.length, tickerPaused]);
 
   const currentTickerAd = tickerAds[tickerIndex % Math.max(tickerAds.length, 1)];
 
@@ -210,7 +211,13 @@ export default function Landing() {
       </header>
 
       {currentTickerAd && (
-        <div style={{ background: T.paper, borderBottom: `1px solid ${T.line}`, overflow: "hidden", position: "relative", height: 56 }}>
+        <div
+          style={{ background: T.paper, borderBottom: `1px solid ${T.line}`, overflow: "hidden", position: "relative", height: 56 }}
+          onMouseEnter={() => setTickerPaused(true)}
+          onMouseLeave={() => setTickerPaused(false)}
+          onTouchStart={() => setTickerPaused(true)}
+          onTouchEnd={() => setTickerPaused(false)}
+        >
           <a
             key={currentTickerAd.id + "-" + tickerIndex}
             href={currentTickerAd.link_url || "#"}
@@ -221,6 +228,7 @@ export default function Landing() {
               whiteSpace: "nowrap",
               textDecoration: "none",
               animation: `ticker-scroll ${currentTickerAd.content_type === "text" ? Math.max(18, currentTickerAd.text_content.length * 0.25) : 14}s linear 1`,
+              animationPlayState: tickerPaused ? "paused" : "running",
             }}
           >
             {currentTickerAd.content_type === "text" ? (
