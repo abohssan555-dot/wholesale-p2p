@@ -13,6 +13,7 @@ import DriverDashboard from "./DriverDashboard.jsx";
 import FinancialDashboard from "./FinancialDashboard.jsx";
 import LogisticsDashboard from "./LogisticsDashboard.jsx";
 import CustomerServiceDashboard from "./CustomerServiceDashboard.jsx";
+import StaffSignup from "./StaffSignup.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -26,6 +27,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/financial" element={<FinancialDashboard />} />
         <Route path="/logistics" element={<LogisticsDashboard />} />
         <Route path="/support" element={<CustomerServiceDashboard />} />
+        <Route path="/staff" element={<StaffSignup />} />
         <Route
           path="/trader"
           element={
