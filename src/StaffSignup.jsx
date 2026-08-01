@@ -25,7 +25,7 @@ function useFonts() {
 
 export default function StaffSignup() {
   useFonts();
-  const [form, setForm] = useState({ full_name: "", phone: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ full_name: "", phone: "", city: "", email: "", password: "", confirm: "" });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
@@ -56,7 +56,7 @@ export default function StaffSignup() {
     const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { full_name: form.full_name, phone: form.phone } },
+      options: { data: { full_name: form.full_name, phone: form.phone, city: form.city } },
     });
     setLoading(false);
     if (error) {
@@ -102,6 +102,9 @@ export default function StaffSignup() {
 
                 <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>رقم الجوال</label>
                 <input required value={form.phone} onChange={set("phone")} placeholder="05xxxxxxxx" className="w-full text-sm rounded-lg py-2 px-3 mb-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+
+                <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>المدينة</label>
+                <input required value={form.city} onChange={set("city")} className="w-full text-sm rounded-lg py-2 px-3 mb-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
 
                 <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>البريد الإلكتروني</label>
                 <input type="email" name="email" autoComplete="email" required value={form.email} onChange={set("email")} className="w-full text-sm rounded-lg py-2 px-3 mb-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
