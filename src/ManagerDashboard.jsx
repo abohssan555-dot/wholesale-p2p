@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Navigate, Link } from "react-router-dom";
-import { supabase } from "./supabaseClient.js";
+import { supabase, ADMIN_ROLE_IDS } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
 import CatalogImportPanel from "./CatalogImportPanel.jsx";
 import {
@@ -298,7 +298,45 @@ function CommissionCell({ account }) {
   );
 }
 
-function Accounts({ accounts, loading }) {
+function GrantRoleCell({ account, onGranted }) {
+  const [selected, setSelected] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const hasStaffRole = (account.user_roles || []).some((ur) =>
+    ["financial_supervisor", "logistics_supervisor", "customer_support", "site_manager"].includes(ur.role_id)
+  );
+  if (hasStaffRole) return <span style={{ color: T.sub }}>—</span>;
+
+  const grant = async () => {
+    if (!selected) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("grant_staff_role", { p_user_id: account.id, p_role_id: selected });
+    setBusy(false);
+    if (!error) {
+      setDone(true);
+      onGranted();
+    }
+  };
+
+  if (done) return <span className="text-[11px]" style={{ color: T.good }}>تم المنح ✓</span>;
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <select value={selected} onChange={(e) => setSelected(e.target.value)} className="text-[11px] rounded-lg py-1 px-1.5 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}>
+        <option value="">اختر دور</option>
+        <option value="financial_supervisor">مشرف مالي</option>
+        <option value="logistics_supervisor">مشرف لوجستي</option>
+        <option value="customer_support">خدمة عملاء</option>
+      </select>
+      <button onClick={grant} disabled={busy || !selected} className="text-[10px] font-medium px-2 py-1 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
+        {busy ? "..." : "منح"}
+      </button>
+    </div>
+  );
+}
+
+function Accounts({ accounts, loading, onReload }) {
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
@@ -309,11 +347,12 @@ function Accounts({ accounts, loading }) {
             <th className="text-start font-medium px-5 py-3">الدور</th>
             <th className="text-start font-medium px-5 py-3">الحالة</th>
             <th className="text-start font-medium px-5 py-3">نسبة العمولة (للتجّار)</th>
+            <th className="text-start font-medium px-5 py-3">منح دور إشرافي</th>
           </tr>
         </thead>
         <tbody>
           {accounts.length === 0 ? (
-            <tr><td colSpan={4} className="px-5 py-4 text-sm" style={{ color: T.sub }}>لا يوجد حسابات مسجّلة بعد.</td></tr>
+            <tr><td colSpan={5} className="px-5 py-4 text-sm" style={{ color: T.sub }}>لا يوجد حسابات مسجّلة بعد.</td></tr>
           ) : accounts.map((a, i) => (
             <tr key={a.id} style={{ borderTop: i ? `1px solid ${T.line}` : "none" }}>
               <td className="px-5 py-3.5 font-medium" style={{ color: T.ink }}>{a.full_name}</td>
@@ -325,6 +364,9 @@ function Accounts({ accounts, loading }) {
               </td>
               <td className="px-5 py-3.5">
                 <CommissionCell account={a} />
+              </td>
+              <td className="px-5 py-3.5">
+                <GrantRoleCell account={a} onGranted={onReload} />
               </td>
             </tr>
           ))}
@@ -656,6 +698,18 @@ export default function ManagerDashboard() {
   const [accounts, setAccounts] = useState([]);
   const [audit, setAudit] = useState([]);
   const [loading, setLoading] = useState({ requests: true, accounts: true, audit: true });
+  const [authorized, setAuthorized] = useState(null);
+
+  useEffect(() => {
+    if (!session) return;
+    supabase
+      .from("user_roles")
+      .select("role_id")
+      .eq("user_id", session.user.id)
+      .in("role_id", ADMIN_ROLE_IDS)
+      .maybeSingle()
+      .then(({ data }) => setAuthorized(!!data));
+  }, [session]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -709,7 +763,7 @@ export default function ManagerDashboard() {
     if (!error) loadAll();
   };
 
-  if (checking) {
+  if (checking || (session && authorized === null)) {
     return (
       <div className="w-full h-screen flex items-center justify-center" style={{ background: T.paper }}>
         <Loader2 className="animate-spin" style={{ color: T.sealDeep }} />
@@ -717,7 +771,7 @@ export default function ManagerDashboard() {
     );
   }
 
-  if (!session) {
+  if (!session || authorized === false) {
     return <Navigate to="/login" replace />;
   }
 
@@ -726,7 +780,7 @@ export default function ManagerDashboard() {
   const PAGES = {
     overview: { title: "نظرة عامة", node: <Overview pendingCount={pendingCount} /> },
     approvals: { title: "طلبات الاعتماد", node: <Approvals requests={requests} loading={loading.requests} onDecide={decide} /> },
-    accounts: { title: "الحسابات والأدوار", node: <Accounts accounts={accounts} loading={loading.accounts} /> },
+    accounts: { title: "الحسابات والأدوار", node: <Accounts accounts={accounts} loading={loading.accounts} onReload={loadAll} /> },
     catalog: { title: "الكتالوج المرجعي", node: <CatalogImportPanel session={session} /> },
     settlements: { title: "التسويات المالية", node: <Settlements /> },
     ads: { title: "الإعلانات", node: <AdReviews /> },
