@@ -736,10 +736,11 @@ export default function ManagerDashboard() {
     setRequests(reqs || []);
     setLoading((l) => ({ ...l, requests: false }));
 
-    const { data: accs } = await supabase
+    const { data: accs, error: accsErr } = await supabase
       .from("profiles")
       .select("*, user_roles(role_id, roles(name_ar))")
       .order("created_at", { ascending: false });
+    if (accsErr) console.error("accounts fetch error:", accsErr);
     setAccounts(accs || []);
     setLoading((l) => ({ ...l, accounts: false }));
 
