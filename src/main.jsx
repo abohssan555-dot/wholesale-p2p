@@ -10,6 +10,9 @@ import ResetPassword from "./ResetPassword.jsx";
 import TraderDashboard from "./TraderDashboard.jsx";
 import ProductBrowse from "./ProductBrowse.jsx";
 import DriverDashboard from "./DriverDashboard.jsx";
+import FinancialDashboard from "./FinancialDashboard.jsx";
+import LogisticsDashboard from "./LogisticsDashboard.jsx";
+import CustomerServiceDashboard from "./CustomerServiceDashboard.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -20,6 +23,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin" element={<ManagerDashboard />} />
+        <Route path="/financial" element={<FinancialDashboard />} />
+        <Route path="/logistics" element={<LogisticsDashboard />} />
+        <Route path="/support" element={<CustomerServiceDashboard />} />
         <Route
           path="/trader"
           element={
