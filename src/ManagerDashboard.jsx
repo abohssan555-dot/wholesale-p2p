@@ -323,6 +323,12 @@ function GrantRoleCell({ account, onGranted }) {
   // حسابات التاجر/العميل/السائق ما تُمنح دور إشرافي فوقها
   if (hasNonStaffRole) return <span style={{ color: T.sub }}>—</span>;
 
+  // حماية: دور "مدير الموقع" ما يتغيّر من هذي الأداة خالص (تفادي قفل
+  // نفسك برّه لوحة الإدارة بالغلط) — يحتاج تعديل مباشر من قاعدة البيانات
+  if (currentStaffRole?.role_id === "site_manager") {
+    return <span className="text-[11px]" style={{ color: T.sub }} title="لأسباب أمنية، دور مدير الموقع لا يُعدَّل من هذي الشاشة">مدير الموقع 🔒</span>;
+  }
+
   const grant = async () => {
     if (!selected || selected === currentStaffRole?.role_id) return;
     setBusy(true);
@@ -443,10 +449,10 @@ function Accounts({ accounts, loading, onReload }) {
         </select>
       </div>
 
-      <div className="rounded-xl overflow-x-auto" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+      <div className="rounded-xl overflow-auto" style={{ background: "#fff", border: `1px solid ${T.line}`, maxHeight: "60vh" }}>
         <table className="w-full text-sm" style={{ minWidth: 950 }}>
           <thead>
-            <tr style={{ background: T.paper, color: T.sub }}>
+            <tr style={{ background: T.paper, color: T.sub, position: "sticky", top: 0, zIndex: 1 }}>
               <th className="text-start font-medium px-5 py-3">الاسم</th>
               <th className="text-start font-medium px-5 py-3">الدور</th>
               <th className="text-start font-medium px-5 py-3">المدينة</th>
