@@ -301,6 +301,17 @@ function CommissionCell({ account }) {
 const STAFF_ROLE_IDS = ["site_manager", "financial_supervisor", "logistics_supervisor", "customer_support"];
 const NON_STAFF_ROLE_IDS = ["trader", "business_customer", "individual_customer", "driver"];
 
+const ROLE_LABELS_AR = {
+  site_manager: "مدير الموقع",
+  financial_supervisor: "مشرف مالي",
+  logistics_supervisor: "مشرف لوجستي",
+  customer_support: "خدمة عملاء",
+  trader: "تاجر",
+  business_customer: "عميل مؤسسة",
+  individual_customer: "عميل فردي",
+  driver: "سائق",
+};
+
 function GrantRoleCell({ account, onGranted }) {
   const currentStaffRole = (account.user_roles || []).find((ur) => STAFF_ROLE_IDS.includes(ur.role_id));
   const hasNonStaffRole = (account.user_roles || []).some((ur) => NON_STAFF_ROLE_IDS.includes(ur.role_id));
@@ -452,7 +463,7 @@ function Accounts({ accounts, loading, onReload }) {
               <tr key={a.id} style={{ borderTop: i ? `1px solid ${T.line}` : "none" }}>
                 <td className="px-5 py-3.5 font-medium" style={{ color: T.ink }}>{a.full_name}</td>
                 <td className="px-5 py-3.5" style={{ color: T.sub }}>
-                  {(a.user_roles || []).map((ur) => ur.roles?.name_ar).filter(Boolean).join("، ") || "بدون دور"}
+                  {(a.user_roles || []).map((ur) => ROLE_LABELS_AR[ur.role_id] || ur.role_id).filter(Boolean).join("، ") || "بدون دور"}
                 </td>
                 <td className="px-5 py-3.5" style={{ color: T.sub }}>{a.city || "—"}</td>
                 <td className="px-5 py-3.5">
@@ -844,17 +855,14 @@ export default function ManagerDashboard() {
 
     const { data: allRoles, error: rolesErr } = await supabase
       .from("user_roles")
-      .select("user_id, role_id, roles(name_ar)");
+      .select("user_id, role_id");
     if (rolesErr) console.error("user_roles fetch error:", rolesErr);
 
     const rolesByUser = {};
     for (const r of allRoles || []) {
       (rolesByUser[r.user_id] ||= []).push(r);
     }
-    console.log("DEBUG accs:", JSON.stringify(accs, null, 2));
-    console.log("DEBUG allRoles:", JSON.stringify(allRoles, null, 2));
     const merged = (accs || []).map((a) => ({ ...a, user_roles: rolesByUser[a.id] || [] }));
-    console.log("DEBUG merged:", JSON.stringify(merged, null, 2));
     setAccounts(merged);
     setLoading((l) => ({ ...l, accounts: false }));
 
