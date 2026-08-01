@@ -298,26 +298,31 @@ function CommissionCell({ account }) {
   );
 }
 
+const STAFF_ROLE_IDS = ["site_manager", "financial_supervisor", "logistics_supervisor", "customer_support"];
+const NON_STAFF_ROLE_IDS = ["trader", "business_customer", "individual_customer", "driver"];
+
 function GrantRoleCell({ account, onGranted }) {
-  const [selected, setSelected] = useState("");
+  const currentStaffRole = (account.user_roles || []).find((ur) => STAFF_ROLE_IDS.includes(ur.role_id));
+  const hasNonStaffRole = (account.user_roles || []).some((ur) => NON_STAFF_ROLE_IDS.includes(ur.role_id));
+
+  const [selected, setSelected] = useState(currentStaffRole?.role_id || "");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
-  const hasAnyRole = (account.user_roles || []).length > 0;
-  if (hasAnyRole) return <span style={{ color: T.sub }}>—</span>;
+  // حسابات التاجر/العميل/السائق ما تُمنح دور إشرافي فوقها
+  if (hasNonStaffRole) return <span style={{ color: T.sub }}>—</span>;
 
   const grant = async () => {
-    if (!selected) return;
+    if (!selected || selected === currentStaffRole?.role_id) return;
     setBusy(true);
     const { error } = await supabase.rpc("grant_staff_role", { p_user_id: account.id, p_role_id: selected });
     setBusy(false);
     if (!error) {
       setDone(true);
       onGranted();
+      setTimeout(() => setDone(false), 2000);
     }
   };
-
-  if (done) return <span className="text-[11px]" style={{ color: T.good }}>تم المنح ✓</span>;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -327,8 +332,36 @@ function GrantRoleCell({ account, onGranted }) {
         <option value="logistics_supervisor">مشرف لوجستي</option>
         <option value="customer_support">خدمة عملاء</option>
       </select>
-      <button onClick={grant} disabled={busy || !selected} className="text-[10px] font-medium px-2 py-1 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
-        {busy ? "..." : "منح"}
+      <button onClick={grant} disabled={busy || !selected || selected === currentStaffRole?.role_id} className="text-[10px] font-medium px-2 py-1 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
+        {busy ? "..." : done ? "تم ✓" : currentStaffRole ? "تغيير" : "منح"}
+      </button>
+    </div>
+  );
+}
+
+function DriverCommissionCell({ account }) {
+  const isDriver = (account.user_roles || []).some((ur) => ur.role_id === "driver");
+  const [value, setValue] = useState(account.delivery_commission_override ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  if (!isDriver) return <span style={{ color: T.sub }}>—</span>;
+
+  const save = async () => {
+    setSaving(true);
+    const num = value === "" ? null : Number(value);
+    await supabase.from("profiles").update({ delivery_commission_override: num }).eq("id", account.id);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <input type="number" step="0.5" value={value} onChange={(e) => setValue(e.target.value)} placeholder="10 (عام)" className="w-16 text-xs rounded-lg py-1 px-2 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+      <span className="text-[10px]" style={{ color: T.sub }}>%</span>
+      <button onClick={save} disabled={saving} className="text-[10px] font-medium px-2 py-1 rounded-lg" style={{ background: saved ? T.goodBg : T.paper, color: saved ? T.good : T.sub, border: `1px solid ${T.line}` }}>
+        {saved ? "تم ✓" : saving ? "..." : "حفظ"}
       </button>
     </div>
   );
@@ -400,20 +433,21 @@ function Accounts({ accounts, loading, onReload }) {
       </div>
 
       <div className="rounded-xl overflow-x-auto" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-        <table className="w-full text-sm" style={{ minWidth: 800 }}>
+        <table className="w-full text-sm" style={{ minWidth: 950 }}>
           <thead>
             <tr style={{ background: T.paper, color: T.sub }}>
               <th className="text-start font-medium px-5 py-3">الاسم</th>
               <th className="text-start font-medium px-5 py-3">الدور</th>
               <th className="text-start font-medium px-5 py-3">المدينة</th>
               <th className="text-start font-medium px-5 py-3">الحالة</th>
-              <th className="text-start font-medium px-5 py-3">نسبة العمولة (للتجّار)</th>
+              <th className="text-start font-medium px-5 py-3">عمولة التاجر</th>
+              <th className="text-start font-medium px-5 py-3">عمولة توصيل السائق</th>
               <th className="text-start font-medium px-5 py-3">منح دور إشرافي</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} className="px-5 py-4 text-sm" style={{ color: T.sub }}>لا توجد حسابات مطابقة.</td></tr>
+              <tr><td colSpan={7} className="px-5 py-4 text-sm" style={{ color: T.sub }}>لا توجد حسابات مطابقة.</td></tr>
             ) : filtered.map((a, i) => (
               <tr key={a.id} style={{ borderTop: i ? `1px solid ${T.line}` : "none" }}>
                 <td className="px-5 py-3.5 font-medium" style={{ color: T.ink }}>{a.full_name}</td>
@@ -426,6 +460,9 @@ function Accounts({ accounts, loading, onReload }) {
                 </td>
                 <td className="px-5 py-3.5">
                   <CommissionCell account={a} />
+                </td>
+                <td className="px-5 py-3.5">
+                  <DriverCommissionCell account={a} />
                 </td>
                 <td className="px-5 py-3.5">
                   <GrantRoleCell account={a} onGranted={onReload} />
