@@ -738,7 +738,7 @@ export default function ManagerDashboard() {
 
     const { data: accs, error: accsErr } = await supabase
       .from("profiles")
-      .select("*, user_roles(role_id, roles(name_ar))")
+      .select("*, user_roles!user_id(role_id, roles(name_ar))")
       .order("created_at", { ascending: false });
     if (accsErr) console.error("accounts fetch error:", accsErr);
     setAccounts(accs || []);
