@@ -36,9 +36,9 @@ export function setRememberMe(remember) {
 // خريطة الدور → المسار اللي يوديه له بعد تسجيل الدخول
 export const ROLE_ROUTES = {
   site_manager: "/admin",
-  financial_supervisor: "/admin", // نفس لوحة الإدارة حالياً، هتنفصل لاحقاً
-  logistics_supervisor: "/admin",
-  customer_support: "/admin",
+  financial_supervisor: "/financial",
+  logistics_supervisor: "/logistics",
+  customer_support: "/support",
   trader: "/trader/dashboard",
   business_customer: "/business/shop",
   driver: "/driver/dashboard",
