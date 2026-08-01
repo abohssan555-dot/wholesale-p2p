@@ -339,8 +339,8 @@ function GrantRoleCell({ account, onGranted }) {
 function Accounts({ accounts, loading, onReload }) {
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-      <table className="w-full text-sm">
+    <div className="rounded-xl overflow-x-auto" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+      <table className="w-full text-sm" style={{ minWidth: 700 }}>
         <thead>
           <tr style={{ background: T.paper, color: T.sub }}>
             <th className="text-start font-medium px-5 py-3">الاسم</th>
