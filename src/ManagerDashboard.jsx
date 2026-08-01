@@ -303,10 +303,8 @@ function GrantRoleCell({ account, onGranted }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
-  const hasStaffRole = (account.user_roles || []).some((ur) =>
-    ["financial_supervisor", "logistics_supervisor", "customer_support", "site_manager"].includes(ur.role_id)
-  );
-  if (hasStaffRole) return <span style={{ color: T.sub }}>—</span>;
+  const hasAnyRole = (account.user_roles || []).length > 0;
+  if (hasAnyRole) return <span style={{ color: T.sub }}>—</span>;
 
   const grant = async () => {
     if (!selected) return;
@@ -337,41 +335,106 @@ function GrantRoleCell({ account, onGranted }) {
 }
 
 function Accounts({ accounts, loading, onReload }) {
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [copied, setCopied] = useState(false);
+
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+
+  const cities = [...new Set(accounts.map((a) => a.city).filter(Boolean))];
+
+  const filtered = accounts.filter((a) => {
+    if (search.trim() && !(a.full_name || "").includes(search.trim()) && !(a.business_name || "").includes(search.trim()) && !(a.store_name || "").includes(search.trim())) return false;
+    if (roleFilter) {
+      const roleIds = (a.user_roles || []).map((ur) => ur.role_id);
+      if (roleFilter === "none" ? roleIds.length > 0 : !roleIds.includes(roleFilter)) return false;
+    }
+    if (cityFilter && a.city !== cityFilter) return false;
+    return true;
+  });
+
+  const staffSignupUrl = typeof window !== "undefined" ? `${window.location.origin}/staff` : "/staff";
+  const copyLink = () => {
+    navigator.clipboard.writeText(staffSignupUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="rounded-xl overflow-x-auto" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-      <table className="w-full text-sm" style={{ minWidth: 700 }}>
-        <thead>
-          <tr style={{ background: T.paper, color: T.sub }}>
-            <th className="text-start font-medium px-5 py-3">الاسم</th>
-            <th className="text-start font-medium px-5 py-3">الدور</th>
-            <th className="text-start font-medium px-5 py-3">الحالة</th>
-            <th className="text-start font-medium px-5 py-3">نسبة العمولة (للتجّار)</th>
-            <th className="text-start font-medium px-5 py-3">منح دور إشرافي</th>
-          </tr>
-        </thead>
-        <tbody>
-          {accounts.length === 0 ? (
-            <tr><td colSpan={5} className="px-5 py-4 text-sm" style={{ color: T.sub }}>لا يوجد حسابات مسجّلة بعد.</td></tr>
-          ) : accounts.map((a, i) => (
-            <tr key={a.id} style={{ borderTop: i ? `1px solid ${T.line}` : "none" }}>
-              <td className="px-5 py-3.5 font-medium" style={{ color: T.ink }}>{a.full_name}</td>
-              <td className="px-5 py-3.5" style={{ color: T.sub }}>
-                {(a.user_roles || []).map((ur) => ur.roles?.name_ar).filter(Boolean).join("، ") || "بدون دور"}
-              </td>
-              <td className="px-5 py-3.5">
-                <Badge tone={a.status === "active" ? "good" : "bad"}>{a.status === "active" ? "نشط" : "معلّق"}</Badge>
-              </td>
-              <td className="px-5 py-3.5">
-                <CommissionCell account={a} />
-              </td>
-              <td className="px-5 py-3.5">
-                <GrantRoleCell account={a} onGranted={onReload} />
-              </td>
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl p-4 flex items-center justify-between gap-3" style={{ background: T.goodBg, border: "1px solid #BFE0CE" }}>
+        <div>
+          <div className="text-xs font-medium" style={{ color: T.ink }}>رابط تسجيل حساب إداري جديد</div>
+          <div className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>{staffSignupUrl}</div>
+        </div>
+        <button onClick={copyLink} className="text-xs font-medium px-3 py-2 rounded-lg shrink-0" style={{ background: copied ? T.good : T.ink, color: "#fff" }}>
+          {copied ? "تم النسخ ✓" : "نسخ الرابط"}
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="بحث بالاسم..."
+          className="flex-1 min-w-[160px] text-xs rounded-lg py-2 px-3 outline-none"
+          style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+        />
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="text-xs rounded-lg py-2 px-2 outline-none" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}>
+          <option value="">كل الأدوار</option>
+          <option value="none">بدون دور</option>
+          <option value="trader">تاجر</option>
+          <option value="business_customer">عميل مؤسسة</option>
+          <option value="individual_customer">عميل فردي</option>
+          <option value="driver">سائق</option>
+          <option value="site_manager">مدير الموقع</option>
+          <option value="financial_supervisor">مشرف مالي</option>
+          <option value="logistics_supervisor">مشرف لوجستي</option>
+          <option value="customer_support">خدمة عملاء</option>
+        </select>
+        <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className="text-xs rounded-lg py-2 px-2 outline-none" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}>
+          <option value="">كل المدن</option>
+          {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      <div className="rounded-xl overflow-x-auto" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+        <table className="w-full text-sm" style={{ minWidth: 800 }}>
+          <thead>
+            <tr style={{ background: T.paper, color: T.sub }}>
+              <th className="text-start font-medium px-5 py-3">الاسم</th>
+              <th className="text-start font-medium px-5 py-3">الدور</th>
+              <th className="text-start font-medium px-5 py-3">المدينة</th>
+              <th className="text-start font-medium px-5 py-3">الحالة</th>
+              <th className="text-start font-medium px-5 py-3">نسبة العمولة (للتجّار)</th>
+              <th className="text-start font-medium px-5 py-3">منح دور إشرافي</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={6} className="px-5 py-4 text-sm" style={{ color: T.sub }}>لا توجد حسابات مطابقة.</td></tr>
+            ) : filtered.map((a, i) => (
+              <tr key={a.id} style={{ borderTop: i ? `1px solid ${T.line}` : "none" }}>
+                <td className="px-5 py-3.5 font-medium" style={{ color: T.ink }}>{a.full_name}</td>
+                <td className="px-5 py-3.5" style={{ color: T.sub }}>
+                  {(a.user_roles || []).map((ur) => ur.roles?.name_ar).filter(Boolean).join("، ") || "بدون دور"}
+                </td>
+                <td className="px-5 py-3.5" style={{ color: T.sub }}>{a.city || "—"}</td>
+                <td className="px-5 py-3.5">
+                  <Badge tone={a.status === "active" ? "good" : "bad"}>{a.status === "active" ? "نشط" : "معلّق"}</Badge>
+                </td>
+                <td className="px-5 py-3.5">
+                  <CommissionCell account={a} />
+                </td>
+                <td className="px-5 py-3.5">
+                  <GrantRoleCell account={a} onGranted={onReload} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -738,10 +801,21 @@ export default function ManagerDashboard() {
 
     const { data: accs, error: accsErr } = await supabase
       .from("profiles")
-      .select("*, user_roles!user_id(role_id, roles(name_ar))")
+      .select("*")
       .order("created_at", { ascending: false });
     if (accsErr) console.error("accounts fetch error:", accsErr);
-    setAccounts(accs || []);
+
+    const { data: allRoles, error: rolesErr } = await supabase
+      .from("user_roles")
+      .select("user_id, role_id, roles(name_ar)");
+    if (rolesErr) console.error("user_roles fetch error:", rolesErr);
+
+    const rolesByUser = {};
+    for (const r of allRoles || []) {
+      (rolesByUser[r.user_id] ||= []).push(r);
+    }
+    const merged = (accs || []).map((a) => ({ ...a, user_roles: rolesByUser[a.id] || [] }));
+    setAccounts(merged);
     setLoading((l) => ({ ...l, accounts: false }));
 
     const { data: log } = await supabase
