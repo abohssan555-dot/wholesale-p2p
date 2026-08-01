@@ -851,7 +851,10 @@ export default function ManagerDashboard() {
     for (const r of allRoles || []) {
       (rolesByUser[r.user_id] ||= []).push(r);
     }
+    console.log("DEBUG accs:", accs);
+    console.log("DEBUG allRoles:", allRoles);
     const merged = (accs || []).map((a) => ({ ...a, user_roles: rolesByUser[a.id] || [] }));
+    console.log("DEBUG merged:", merged);
     setAccounts(merged);
     setLoading((l) => ({ ...l, accounts: false }));
 
