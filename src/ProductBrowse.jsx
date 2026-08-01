@@ -633,6 +633,18 @@ export default function ProductBrowse() {
   const [tab, setTab] = useState("browse");
   const [profile, setProfile] = useState(null);
   const [showWallet, setShowWallet] = useState(false);
+  const [authorized, setAuthorized] = useState(null);
+
+  useEffect(() => {
+    if (!session) return;
+    supabase
+      .from("user_roles")
+      .select("role_id")
+      .eq("user_id", session.user.id)
+      .in("role_id", ["business_customer", "individual_customer"])
+      .maybeSingle()
+      .then(({ data }) => setAuthorized(!!data));
+  }, [session]);
   const [appAd, setAppAd] = useState(null);
 
   useEffect(() => {
@@ -714,14 +726,14 @@ export default function ProductBrowse() {
 
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
 
-  if (checking) {
+  if (checking || (session && authorized === null)) {
     return (
       <div className="w-full h-screen flex items-center justify-center" style={{ background: T.paper }}>
         <Loader2 className="animate-spin" style={{ color: T.sealDeep }} />
       </div>
     );
   }
-  if (!session) return <Navigate to="/login" replace />;
+  if (!session || authorized === false) return <Navigate to="/login" replace />;
 
   return (
     <div dir="rtl" className="w-full min-h-screen" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper }}>
