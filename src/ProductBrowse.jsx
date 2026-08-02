@@ -416,21 +416,124 @@ const ORDER_STATUS_LABELS = {
   cancelled: "ملغى",
 };
 
+function ReturnRequestModal({ order, onClose, onDone }) {
+  const [selected, setSelected] = useState({});
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState("");
+
+  const toggle = (item) => {
+    setSelected((s) => {
+      const copy = { ...s };
+      if (copy[item.id]) delete copy[item.id];
+      else copy[item.id] = item.quantity;
+      return copy;
+    });
+  };
+
+  const setQty = (itemId, qty, max) => {
+    setSelected((s) => ({ ...s, [itemId]: Math.max(1, Math.min(max, qty)) }));
+  };
+
+  const submit = async () => {
+    const items = Object.entries(selected).map(([order_item_id, quantity]) => ({ order_item_id, quantity }));
+    if (items.length === 0) {
+      setErr("اختر منتج واحد على الأقل.");
+      return;
+    }
+    if (!reason.trim()) {
+      setErr("يرجى كتابة سبب الإرجاع.");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.rpc("request_return", { p_order_id: order.id, p_items: items, p_reason: reason.trim() });
+    setSubmitting(false);
+    if (error) {
+      setErr(error.message || "تعذّر إرسال طلب الإرجاع.");
+      return;
+    }
+    onDone();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(20,33,59,0.55)" }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto" style={{ background: "#fff" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-semibold" style={{ color: T.ink }}>طلب إرجاع — طلب #{order.id.slice(0, 8)}</span>
+          <button onClick={onClose}><X size={18} style={{ color: T.sub }} /></button>
+        </div>
+
+        <div className="text-[11px] font-medium mb-2" style={{ color: T.sub }}>اختر المنتجات المطلوب إرجاعها</div>
+        <div className="flex flex-col gap-2 mb-4">
+          {(order.order_items || []).map((item) => (
+            <div key={item.id} className="rounded-lg p-3" style={{ background: selected[item.id] ? "#FBF1DD" : T.paper, border: `1px solid ${T.line}` }}>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!selected[item.id]} onChange={() => toggle(item)} />
+                <span className="text-xs flex-1" style={{ color: T.ink }}>{item.product_name} (المطلوب أصلاً: {item.quantity})</span>
+              </label>
+              {selected[item.id] && (
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-[11px]" style={{ color: T.sub }}>الكمية المرتجعة:</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={item.quantity}
+                    value={selected[item.id]}
+                    onChange={(e) => setQty(item.id, Number(e.target.value), item.quantity)}
+                    className="w-16 text-xs rounded-lg py-1 px-2 outline-none"
+                    style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <label className="text-[11px] font-medium block mb-1" style={{ color: T.sub }}>سبب الإرجاع</label>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          placeholder="مثال: منتج تالف، خطأ بالطلب، تغيّرت الحاجة..."
+          className="w-full text-sm rounded-lg py-2 px-3 mb-3 outline-none"
+          style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+        />
+
+        {err && <div className="text-xs mb-3" style={{ color: T.bad }}>{err}</div>}
+
+        <button
+          onClick={submit}
+          disabled={submitting}
+          className="w-full text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2"
+          style={{ background: T.ink, color: "#fff" }}
+        >
+          {submitting && <Loader2 size={14} className="animate-spin" />}
+          إرسال طلب الإرجاع
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function MyOrdersTab({ session }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [returnOrder, setReturnOrder] = useState(null);
+  const [returnSuccess, setReturnSuccess] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
     supabase
       .from("orders")
-      .select("*, delivery_pin, order_items(product_name, quantity, unit_price, trader_id)")
+      .select("*, delivery_pin, order_items(id, product_name, quantity, unit_price, trader_id)")
       .eq("customer_id", session.user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         setOrders(data || []);
         setLoading(false);
       });
-  }, [session]);
+  };
+
+  useEffect(load, [session]);
 
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={18} style={{ color: T.sealDeep }} /></div>;
   if (orders.length === 0) {
@@ -476,9 +579,27 @@ function MyOrdersTab({ session }) {
             <span className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
               الإجمالي: {o.total} ر.س
             </span>
+            {o.status === "delivered" && (
+              <button onClick={() => setReturnOrder(o)} className="text-[11px] font-medium px-3 py-1.5 rounded-lg" style={{ background: T.badBg, color: T.bad }}>
+                طلب إرجاع
+              </button>
+            )}
           </div>
         </div>
       ))}
+
+      {returnOrder && (
+        <ReturnRequestModal
+          order={returnOrder}
+          onClose={() => setReturnOrder(null)}
+          onDone={() => { setReturnOrder(null); setReturnSuccess(true); setTimeout(() => setReturnSuccess(false), 3000); load(); }}
+        />
+      )}
+      {returnSuccess && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 text-xs font-medium px-4 py-2.5 rounded-lg" style={{ background: T.good, color: "#fff" }}>
+          تم إرسال طلب الإرجاع، بانتظار رد التاجر
+        </div>
+      )}
     </div>
   );
 }
