@@ -33,12 +33,14 @@ const STAGE_LABELS = { pending: "قيد المراجعة", docs_review: "مرا�
 function Approvals() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [zoneInput, setZoneInput] = useState({});
+  const [distInput, setDistInput] = useState({});
 
   const load = () => {
     setLoading(true);
     supabase
       .from("verification_requests")
-      .select("*, profiles!applicant_id(full_name)")
+      .select("*, profiles!applicant_id(full_name, location_link, delivery_zone, distance_km)")
       .neq("stage", "approved")
       .neq("stage", "rejected")
       .order("submitted_at", { ascending: false })
@@ -55,6 +57,14 @@ function Approvals() {
     load();
   };
 
+  const saveDistance = async (applicantId) => {
+    const zone = zoneInput[applicantId];
+    const dist = distInput[applicantId];
+    if (!zone || !dist) return;
+    await supabase.rpc("assign_customer_distance", { p_user_id: applicantId, p_zone: zone, p_distance_km: Number(dist) });
+    load();
+  };
+
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
 
   return (
@@ -62,13 +72,61 @@ function Approvals() {
       {requests.length === 0 ? (
         <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>لا توجد طلبات بانتظار المراجعة.</div>
       ) : requests.map((r) => (
-        <div key={r.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium" style={{ color: T.ink }}>{r.profiles?.full_name || "—"}</div>
-            <div className="text-[11px]" style={{ color: T.sub }}>{r.applicant_type} · {STAGE_LABELS[r.stage] || r.stage}</div>
+        <div key={r.id} className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+          <div className="flex items-center gap-4 mb-2">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium" style={{ color: T.ink }}>{r.profiles?.full_name || "—"}</div>
+              <div className="text-[11px]" style={{ color: T.sub }}>{r.applicant_type} · {STAGE_LABELS[r.stage] || r.stage}</div>
+            </div>
+            <button onClick={() => decide(r.id, "rejected")} className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.badBg, color: T.bad }}>رفض</button>
+            <button onClick={() => decide(r.id, "approved")} className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.good, color: "#fff" }}>اعتماد</button>
           </div>
-          <button onClick={() => decide(r.id, "rejected")} className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.badBg, color: T.bad }}>رفض</button>
-          <button onClick={() => decide(r.id, "approved")} className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.good, color: "#fff" }}>اعتماد</button>
+
+          {r.applicant_type === "business_customer" && (
+            <div className="rounded-lg p-3 mt-2" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+              <div className="text-[11px] font-medium mb-2" style={{ color: T.sub }}>تحديد منطقة ومسافة التوصيل (للرسوم — مرة وحدة بس)</div>
+              {r.profiles?.location_link ? (
+                <a href={r.profiles.location_link} target="_blank" rel="noreferrer" className="text-[11px] font-medium block mb-2" style={{ color: T.sealDeep }}>
+                  📍 فتح موقع العميل على خرائط قوقل
+                </a>
+              ) : (
+                <div className="text-[11px] mb-2" style={{ color: T.bad }}>العميل لم يرفق رابط موقع.</div>
+              )}
+              {r.profiles?.delivery_zone ? (
+                <div className="text-[11px]" style={{ color: T.good }}>
+                  محدَّد مسبقاً: {r.profiles.delivery_zone === "inside_city" ? "داخل المدينة" : "خارج المدينة"} — {r.profiles.distance_km} كم
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={zoneInput[r.applicant_id] || ""}
+                    onChange={(e) => setZoneInput((s) => ({ ...s, [r.applicant_id]: e.target.value }))}
+                    className="text-xs rounded-lg py-1.5 px-2 outline-none"
+                    style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+                  >
+                    <option value="">المنطقة</option>
+                    <option value="inside_city">داخل المدينة</option>
+                    <option value="outside_city">خارج المدينة</option>
+                  </select>
+                  <input
+                    type="number"
+                    placeholder="المسافة (كم)"
+                    value={distInput[r.applicant_id] || ""}
+                    onChange={(e) => setDistInput((s) => ({ ...s, [r.applicant_id]: e.target.value }))}
+                    className="text-xs rounded-lg py-1.5 px-2 outline-none w-28"
+                    style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+                  />
+                  <button
+                    onClick={() => saveDistance(r.applicant_id)}
+                    className="text-[11px] font-medium px-3 py-1.5 rounded-lg"
+                    style={{ background: T.ink, color: "#fff" }}
+                  >
+                    حفظ
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ))}
     </div>
