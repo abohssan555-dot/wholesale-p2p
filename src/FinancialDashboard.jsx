@@ -40,7 +40,9 @@ function Settlements() {
     const query =
       mode === "traders"
         ? supabase.from("trader_invoices").select("*, profiles!trader_id(store_name, full_name)")
-        : supabase.from("driver_earnings").select("*, profiles!driver_id(full_name)");
+        : mode === "drivers"
+        ? supabase.from("driver_earnings").select("*, profiles!driver_id(full_name)")
+        : supabase.from("return_settlements").select("*, profiles!trader_id(store_name, full_name)");
 
     query
       .order("status", { ascending: true })
@@ -55,14 +57,14 @@ function Settlements() {
 
   const settle = async (id) => {
     setBusyId(id);
-    const rpcName = mode === "traders" ? "settle_trader_invoice" : "settle_driver_earning";
-    const paramName = mode === "traders" ? "p_invoice_id" : "p_earning_id";
+    const rpcName = mode === "traders" ? "settle_trader_invoice" : mode === "drivers" ? "settle_driver_earning" : "settle_return";
+    const paramName = mode === "traders" ? "p_invoice_id" : mode === "drivers" ? "p_earning_id" : "p_settlement_id";
     await supabase.rpc(rpcName, { [paramName]: id, p_reference: refInput[id] || null });
     setBusyId(null);
     load();
   };
 
-  const amountField = mode === "traders" ? "net_payable" : "driver_payable";
+  const amountField = mode === "traders" ? "net_payable" : mode === "drivers" ? "driver_payable" : "amount_owed";
   const pending = invoices.filter((i) => i.status === "pending");
   const totalPending = pending.reduce((s, i) => s + Number(i[amountField]), 0);
 
@@ -73,10 +75,13 @@ function Settlements() {
       <div className="flex gap-2">
         <button onClick={() => setMode("traders")} className="flex-1 text-xs font-medium py-2 rounded-lg" style={{ background: mode === "traders" ? T.ink : "#fff", color: mode === "traders" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}>التجّار</button>
         <button onClick={() => setMode("drivers")} className="flex-1 text-xs font-medium py-2 rounded-lg" style={{ background: mode === "drivers" ? T.ink : "#fff", color: mode === "drivers" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}>السائقون</button>
+        <button onClick={() => setMode("returns")} className="flex-1 text-xs font-medium py-2 rounded-lg" style={{ background: mode === "returns" ? T.ink : "#fff", color: mode === "returns" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}>مرتجعات مستحقة</button>
       </div>
 
       <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-        <div className="text-xs" style={{ color: T.sub }}>إجمالي المستحقات قيد التحويل ({mode === "traders" ? "كل التجّار" : "كل السائقين"})</div>
+        <div className="text-xs" style={{ color: T.sub }}>
+          {mode === "returns" ? "إجمالي المستحق على التجّار من مرتجعات (يُخصم من مستحقاتهم القادمة)" : `إجمالي المستحقات قيد التحويل (${mode === "traders" ? "كل التجّار" : "كل السائقين"})`}
+        </div>
         <div className="text-2xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sealDeep }}>
           {totalPending.toFixed(2)} <span className="text-xs font-normal" style={{ color: T.sub }}>ر.س</span>
         </div>
@@ -89,12 +94,14 @@ function Settlements() {
           <div key={inv.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium" style={{ color: T.ink }}>
-                {mode === "traders" ? (inv.profiles?.store_name || inv.profiles?.full_name || "—") : (inv.profiles?.full_name || "—")}
+                {mode === "drivers" ? (inv.profiles?.full_name || "—") : (inv.profiles?.store_name || inv.profiles?.full_name || "—")}
               </div>
               <div className="text-[11px]" style={{ color: T.sub, fontFamily: "'JetBrains Mono', monospace" }}>
                 {mode === "traders"
                   ? `طلب #${inv.order_id?.slice(0, 8)} · إجمالي: ${inv.subtotal} ر.س · عمولة: ${inv.commission_amount} ر.س · صافي: ${inv.net_payable} ر.س`
-                  : `طلب #${inv.order_id?.slice(0, 8)} · رسوم توصيل: ${inv.delivery_fee} ر.س · مستحق: ${inv.driver_payable} ر.س`}
+                  : mode === "drivers"
+                  ? `طلب #${inv.order_id?.slice(0, 8)} · رسوم توصيل: ${inv.delivery_fee} ر.س · مستحق: ${inv.driver_payable} ر.س`
+                  : `مبلغ مستحق على التاجر (مرتجع): ${inv.amount_owed} ر.س`}
               </div>
             </div>
             {inv.status === "settled" ? (
@@ -105,7 +112,7 @@ function Settlements() {
               <div className="flex items-center gap-2 shrink-0">
                 <input placeholder="رقم التحويل (اختياري)" value={refInput[inv.id] || ""} onChange={(e) => setRefInput((r) => ({ ...r, [inv.id]: e.target.value }))} className="text-xs rounded-lg py-1.5 px-2 outline-none w-32" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
                 <button onClick={() => settle(inv.id)} disabled={busyId === inv.id} className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
-                  {busyId === inv.id ? "..." : "تأكيد التحويل"}
+                  {busyId === inv.id ? "..." : "تأكيد الخصم/التحصيل"}
                 </button>
               </div>
             )}
