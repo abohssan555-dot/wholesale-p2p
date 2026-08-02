@@ -141,6 +141,7 @@ function AccountStep({ onDone, applicantType }) {
     store_name: "",
     store_category: "general_food",
     business_name: "",
+    location_link: "",
     full_name: "",
     email: "",
     password: "",
@@ -186,6 +187,7 @@ function AccountStep({ onDone, applicantType }) {
     }
     if (applicantType === "business_customer") {
       meta.business_name = form.business_name;
+      meta.location_link = form.location_link;
     }
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
@@ -196,6 +198,9 @@ function AccountStep({ onDone, applicantType }) {
     if (error) {
       setErr(error.message.includes("already registered") ? "البريد مسجّل مسبقاً." : "تعذّر إنشاء الحساب، تأكد من البيانات.");
       return;
+    }
+    if (applicantType === "business_customer" && data.user) {
+      await supabase.from("profiles").update({ location_link: form.location_link }).eq("id", data.user.id);
     }
     if (!data.session) {
       setNeedsConfirm(true);
@@ -240,7 +245,16 @@ function AccountStep({ onDone, applicantType }) {
           </>
         )}
         {applicantType === "business_customer" && (
-          <Field label="اسم المؤسسة/المنشأة" required value={form.business_name} onChange={set("business_name")} />
+          <>
+            <Field label="اسم المؤسسة/المنشأة" required value={form.business_name} onChange={set("business_name")} />
+            <Field
+              label="رابط الموقع على خرائط قوقل (مهم لدقة رسوم التوصيل)"
+              required
+              value={form.location_link}
+              onChange={set("location_link")}
+              placeholder="افتح موقعك بخرائط قوقل، اضغط مشاركة، وانسخ الرابط هنا"
+            />
+          </>
         )}
         <Field label="رقم الجوال" required value={form.phone} onChange={set("phone")} placeholder="05xxxxxxxx" />
         <div className="mb-4">
