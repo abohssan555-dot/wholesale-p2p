@@ -927,9 +927,89 @@ function AdsPanel({ session }) {
   );
 }
 
+function ReturnRequestsReview({ session }) {
+  const [requests, setRequests] = useState([]);
+  const [items, setItems] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    supabase
+      .from("return_requests")
+      .select("*, profiles!customer_id(full_name, business_name)")
+      .eq("trader_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .then(async ({ data }) => {
+        setRequests(data || []);
+        setLoading(false);
+        const itemsByReq = {};
+        for (const r of data || []) {
+          const { data: ri } = await supabase.from("return_request_items").select("*").eq("return_request_id", r.id);
+          itemsByReq[r.id] = ri || [];
+        }
+        setItems(itemsByReq);
+      });
+  };
+
+  useEffect(load, [session]);
+
+  const decide = async (id, approve) => {
+    setBusyId(id);
+    const { error } = await supabase.rpc("decide_return", { p_return_request_id: id, p_approve: approve });
+    setBusyId(null);
+    if (error) alert(error.message || "تعذّر تنفيذ القرار.");
+    load();
+  };
+
+  const STATUS_LABELS = { pending: "بانتظار قرارك", approved: "تم القبول", rejected: "مرفوض", picked_up: "بالطريق للاستلام", completed: "مكتمل" };
+  const pending = requests.filter((r) => r.status === "pending");
+
+  if (loading) return <div className="text-sm text-center py-6" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+  if (requests.length === 0) return null;
+
+  return (
+    <div className="rounded-xl p-6 mb-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+      <div className="text-sm font-semibold mb-3" style={{ color: T.ink }}>طلبات الإرجاع ({pending.length} بانتظار قرارك)</div>
+      <div className="flex flex-col gap-2">
+        {requests.map((r) => (
+          <div key={r.id} className="rounded-lg p-3" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-medium" style={{ color: T.ink }}>{r.profiles?.business_name || r.profiles?.full_name}</span>
+              <span
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                style={r.status === "approved" ? { background: T.goodBg, color: T.good } : r.status === "rejected" ? { background: T.badBg, color: T.bad } : { background: "#FBF1DD", color: T.sealDeep }}
+              >
+                {STATUS_LABELS[r.status]}
+              </span>
+            </div>
+            <div className="text-[11px] mb-1" style={{ color: T.sub }}>السبب: {r.reason}</div>
+            {(items[r.id] || []).map((it) => (
+              <div key={it.id} className="text-[11px] flex justify-between" style={{ color: T.ink }}>
+                <span>{it.product_name} × {it.quantity}</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sub }}>{it.line_amount} ر.س</span>
+              </div>
+            ))}
+            {r.status === "approved" && (
+              <div className="text-[11px] mt-1" style={{ color: T.good }}>المسترجع للعميل: {r.refund_amount} ر.س (بعد رسوم توصيل {r.return_delivery_fee} ر.س)</div>
+            )}
+            {r.status === "pending" && (
+              <div className="flex items-center gap-2 mt-2">
+                <button onClick={() => decide(r.id, false)} disabled={busyId === r.id} className="text-[11px] font-medium px-3 py-1.5 rounded-lg" style={{ background: T.badBg, color: T.bad }}>رفض</button>
+                <button onClick={() => decide(r.id, true)} disabled={busyId === r.id} className="text-[11px] font-medium px-3 py-1.5 rounded-lg" style={{ background: T.good, color: "#fff" }}>قبول الإرجاع</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ReturnPolicyPanel({ session }) {
   const [generalPolicy, setGeneralPolicy] = useState("");
   const [ownPolicy, setOwnPolicy] = useState("");
+  const [deductFee, setDeductFee] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -937,17 +1017,18 @@ function ReturnPolicyPanel({ session }) {
   useEffect(() => {
     Promise.all([
       supabase.from("platform_settings").select("value").eq("key", "general_return_policy").single(),
-      supabase.from("profiles").select("return_policy_notes").eq("id", session.user.id).single(),
+      supabase.from("profiles").select("return_policy_notes, deduct_return_fee_from_refund").eq("id", session.user.id).single(),
     ]).then(([g, p]) => {
       setGeneralPolicy(g.data?.value || "");
       setOwnPolicy(p.data?.return_policy_notes || "");
+      setDeductFee(p.data?.deduct_return_fee_from_refund ?? true);
       setLoading(false);
     });
   }, [session]);
 
   const save = async () => {
     setSaving(true);
-    await supabase.from("profiles").update({ return_policy_notes: ownPolicy }).eq("id", session.user.id);
+    await supabase.from("profiles").update({ return_policy_notes: ownPolicy, deduct_return_fee_from_refund: deductFee }).eq("id", session.user.id);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -975,6 +1056,22 @@ function ReturnPolicyPanel({ session }) {
           className="w-full text-sm rounded-lg py-2 px-3 outline-none"
           style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
         />
+        <div className="flex items-center gap-2 mb-3 mt-3">
+          <button
+            onClick={() => setDeductFee(true)}
+            className="flex-1 text-xs font-medium py-2 rounded-lg"
+            style={{ background: deductFee ? T.ink : T.paper, color: deductFee ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            أخصم رسوم توصيل الإرجاع من مبلغ العميل
+          </button>
+          <button
+            onClick={() => setDeductFee(false)}
+            className="flex-1 text-xs font-medium py-2 rounded-lg"
+            style={{ background: !deductFee ? T.ink : T.paper, color: !deductFee ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            أتحمّلها أنا بالكامل
+          </button>
+        </div>
         <button
           onClick={save}
           disabled={saving}
@@ -1145,7 +1242,10 @@ export default function TraderDashboard() {
         ) : view === "ads" ? (
           <AdsPanel session={session} />
         ) : view === "returns" ? (
-          <ReturnPolicyPanel session={session} />
+          <>
+            <ReturnRequestsReview session={session} />
+            <ReturnPolicyPanel session={session} />
+          </>
         ) : (
         <>
         <div className="flex gap-2">
