@@ -183,13 +183,12 @@ function ProductRow({ listing, onAdd, inCart }) {
   );
 }
 
-function CartDrawer({ cart, setCart, onClose, session, city }) {
+function CartDrawer({ cart, setCart, onClose, session, city, zone, distanceKm }) {
   const [placing, setPlacing] = useState(false);
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState(null);
   const [vehicleType, setVehicleType] = useState("");
   const [deliverySpeed, setDeliverySpeed] = useState("standard");
-  const [zone, setZone] = useState("inside_city");
 
   const setQty = (key, qty) => {
     const updated = cart.map((c) => (c.key === key ? { ...c, quantity: Math.max(1, qty) } : c));
@@ -213,12 +212,15 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
   const SIZE_WEIGHT = { light: 1, medium: 2, bulky: 4 };
   const totalLoadUnits = cart.reduce((s, c) => s + (SIZE_WEIGHT[c.shipping_size] || 2) * c.quantity, 0);
 
+  const effectiveZone = zone || "inside_city";
+  const effectiveDistance = distanceKm ?? 10;
+
   const feeTier = (() => {
-    let tier = totalLoadUnits <= 18 && zone === "inside_city" ? "small_car"
+    let tier = totalLoadUnits <= 18 && effectiveZone === "inside_city" ? "small_car"
       : totalLoadUnits <= 35 ? "pickup"
       : totalLoadUnits <= 70 ? "van"
       : "truck";
-    if (zone === "outside_city" && tier === "small_car") tier = "pickup";
+    if (effectiveZone === "outside_city" && tier === "small_car") tier = "pickup";
     const PRICES = {
       small_car: { inside_city: 30 },
       pickup: { inside_city: 50, outside_city: 100 },
@@ -226,12 +228,16 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
       truck: { inside_city: 100, outside_city: 200 },
     };
     const LABELS = { small_car: "سيارة صغيرة", pickup: "وانيت", van: "حافلة", truck: "دينا" };
-    return { base: PRICES[tier][zone] ?? PRICES[tier].inside_city, vehicle: LABELS[tier] };
+    const base = PRICES[tier][effectiveZone] ?? PRICES[tier].inside_city;
+    let ramp = 0;
+    if (effectiveZone === "inside_city" && effectiveDistance > 20) ramp = (effectiveDistance - 20) * 0.02 * base;
+    else if (effectiveZone === "outside_city" && effectiveDistance > 100) ramp = (effectiveDistance - 100) * 0.02 * base;
+    return { base: base + ramp, vehicle: LABELS[tier] };
   })();
 
   // خارج المدينة: توصيل سريع منفرد إجباري، ما يُتاح خيار "عادي" أصلاً
-  const effectiveSpeed = zone === "outside_city" ? "express" : deliverySpeed;
-  const deliveryFee = traderCount === 0 ? 0 : feeTier.base + Math.max(traderCount - 1, 0) * 10;
+  const effectiveSpeed = effectiveZone === "outside_city" ? "express" : deliverySpeed;
+  const deliveryFee = traderCount === 0 ? 0 : Math.round(feeTier.base) + Math.max(traderCount - 1, 0) * 10;
 
   const checkout = async () => {
     setErr("");
@@ -243,7 +249,6 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
       p_delivery_city: city || null,
       p_requested_vehicle_type: vehicleType || null,
       p_delivery_speed: effectiveSpeed,
-      p_zone: zone,
     });
     setPlacing(false);
     if (error) {
@@ -311,28 +316,21 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
             ))}
 
             <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-              <label className="text-[11px] font-medium block mb-1.5" style={{ color: T.sub }}>منطقة التوصيل</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setZone("inside_city")}
-                  className="flex-1 text-xs font-medium py-2 rounded-lg"
-                  style={{ background: zone === "inside_city" ? T.ink : T.paper, color: zone === "inside_city" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
-                >
-                  داخل المدينة
-                </button>
-                <button
-                  onClick={() => setZone("outside_city")}
-                  className="flex-1 text-xs font-medium py-2 rounded-lg"
-                  style={{ background: zone === "outside_city" ? T.ink : T.paper, color: zone === "outside_city" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
-                >
-                  خارج المدينة
-                </button>
-              </div>
+              <label className="text-[11px] font-medium block mb-1" style={{ color: T.sub }}>منطقة التوصيل (محدَّدة من الإدارة وقت التوثيق)</label>
+              {zone ? (
+                <div className="text-xs font-medium" style={{ color: T.ink }}>
+                  {effectiveZone === "inside_city" ? "داخل المدينة" : "خارج المدينة"} — {effectiveDistance} كم من مركز المدينة
+                </div>
+              ) : (
+                <div className="text-[11px]" style={{ color: T.sealDeep }}>
+                  لم تُحدَّد منطقتك بعد — سيُطبَّق سعر داخل المدينة مبدئياً، وتواصل مع الدعم لتحديدها بدقة.
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg p-3 mt-2" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
               <label className="text-[11px] font-medium block mb-1.5" style={{ color: T.sub }}>سرعة التوصيل</label>
-              {zone === "outside_city" ? (
+              {effectiveZone === "outside_city" ? (
                 <div className="text-xs px-3 py-2 rounded-lg" style={{ background: "#FBF1DD", color: T.sealDeep }}>
                   الطلبات خارج المدينة تُوصَّل توصيلاً سريعاً منفرداً إلزامياً (بدون تجميع مع طلبات أخرى)
                 </div>
@@ -365,7 +363,7 @@ function CartDrawer({ cart, setCart, onClose, session, city }) {
                 style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
               >
                 <option value="">بدون تفضيل</option>
-                {zone === "inside_city" && <option value="small_car">سيارة صغيرة</option>}
+                {effectiveZone === "inside_city" && <option value="small_car">سيارة صغيرة</option>}
                 <option value="pickup">وانيت</option>
                 <option value="van">حافلة</option>
                 <option value="truck">دينا</option>
@@ -661,7 +659,7 @@ export default function ProductBrowse() {
 
   useEffect(() => {
     if (session) {
-      supabase.from("profiles").select("full_name, business_name, city, wallet_balance").eq("id", session.user.id).single()
+      supabase.from("profiles").select("full_name, business_name, city, wallet_balance, delivery_zone, distance_km").eq("id", session.user.id).single()
         .then(({ data }) => setProfile(data));
     }
   }, [session]);
@@ -862,7 +860,7 @@ export default function ProductBrowse() {
         )}
       </div>
 
-      {showCart && <CartDrawer cart={cart} setCart={setCart} onClose={() => setShowCart(false)} session={session.user} city={profile?.city} />}
+      {showCart && <CartDrawer cart={cart} setCart={setCart} onClose={() => setShowCart(false)} session={session.user} city={profile?.city} zone={profile?.delivery_zone} distanceKm={profile?.distance_km} />}
       {showWallet && <CustomerWalletDrawer session={session} balance={profile?.wallet_balance} onClose={() => setShowWallet(false)} />}
     </div>
   );
