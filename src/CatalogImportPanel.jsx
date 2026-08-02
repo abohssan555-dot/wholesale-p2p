@@ -39,6 +39,7 @@ function PendingCatalogReview() {
   const [selected, setSelected] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [sizeChoice, setSizeChoice] = useState({});
+  const [totalPending, setTotalPending] = useState(0);
 
   const load = () => {
     setLoading(true);
@@ -54,6 +55,11 @@ function PendingCatalogReview() {
         setSizeChoice(Object.fromEntries((data || []).map((it) => [it.id, "medium"])));
         setLoading(false);
       });
+    supabase
+      .from("product_catalog")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending_review")
+      .then(({ count }) => setTotalPending(count || 0));
   };
 
   React.useEffect(load, []);
@@ -83,13 +89,26 @@ function PendingCatalogReview() {
   const bulkDecide = async (status) => {
     setBulkBusy(true);
     if (status === "approved") {
-      // كل صنف بتصنيفه المختار له وقت الاعتماد الجماعي
+      // نجمّع حسب التصنيف المختار، ونحدّث كل مجموعة بطلب واحد بدل طلب لكل صنف
+      const groups = {};
       for (const id of selected) {
-        await supabase.from("product_catalog").update({ status, shipping_size: sizeChoice[id] || "medium" }).eq("id", id);
+        const size = sizeChoice[id] || "medium";
+        (groups[size] ||= []).push(id);
+      }
+      for (const [size, ids] of Object.entries(groups)) {
+        await supabase.from("product_catalog").update({ status, shipping_size: size }).in("id", ids);
       }
     } else {
       await supabase.from("product_catalog").update({ status }).in("id", Array.from(selected));
     }
+    setBulkBusy(false);
+    load();
+  };
+
+  const approveAllPending = async () => {
+    if (!window.confirm("سيتم اعتماد كل المنتجات قيد المراجعة دفعة واحدة بتصنيف \"متوسط الوزن\" افتراضياً. متأكد؟")) return;
+    setBulkBusy(true);
+    await supabase.from("product_catalog").update({ status: "approved", shipping_size: "medium" }).eq("status", "pending_review");
     setBulkBusy(false);
     load();
   };
@@ -99,7 +118,7 @@ function PendingCatalogReview() {
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Database size={16} style={{ color: T.sealDeep }} />
-          <span className="text-sm font-semibold" style={{ color: T.ink }}>منتجات قيد المراجعة ({items.length})</span>
+          <span className="text-sm font-semibold" style={{ color: T.ink }}>منتجات قيد المراجعة ({totalPending})</span>
         </div>
         {items.length > 0 && (
           <button onClick={toggleSelectAll} className="text-xs font-medium" style={{ color: T.sealDeep }}>
@@ -107,9 +126,20 @@ function PendingCatalogReview() {
           </button>
         )}
       </div>
-      <div className="text-xs mb-4" style={{ color: T.sub }}>
-        أصناف جديدة كلياً أضافها التجّار (بدون باركود مطابق) — تحتاج تأكيد أنها ليست تكراراً لصنف موجود باسم مختلف، وتحديد تصنيف وزن الشحنة قبل الاعتماد.
+      <div className="text-xs mb-2" style={{ color: T.sub }}>
+        أصناف جديدة كلياً أضافها التجّار (بدون باركود مطابق) — تحتاج تأكيد أنها ليست تكراراً لصنف موجود باسم مختلف، وتحديد تصنيف وزن الشحنة قبل الاعتماد. (تُعرض أول 100 فقط بالقائمة أدناه)
       </div>
+      {totalPending > 100 && (
+        <button
+          onClick={approveAllPending}
+          disabled={bulkBusy}
+          className="text-xs font-medium px-3 py-2 rounded-lg mb-4 flex items-center gap-1.5"
+          style={{ background: T.goodBg, color: T.good, border: "1px solid #BFE0CE" }}
+        >
+          {bulkBusy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+          اعتماد كل الـ{totalPending} صنف دفعة واحدة (تصنيف "متوسط الوزن" افتراضياً)
+        </button>
+      )}
 
       {selected.size > 0 && (
         <div className="flex items-center justify-between gap-2 rounded-lg p-3 mb-3" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
