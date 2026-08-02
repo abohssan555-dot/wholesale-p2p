@@ -469,10 +469,11 @@ function ReturnableToggle({ listing }) {
     <button
       onClick={toggle}
       disabled={busy}
+      title="اضغط لتبديل الحالة"
       className="text-[11px] font-medium px-2.5 py-1 rounded-full"
       style={value ? { background: T.goodBg, color: T.good } : { background: T.badBg, color: T.bad }}
     >
-      {value ? "قابل للإرجاع" : "غير قابل"}
+      {value ? "✓ قابل للإرجاع الآن" : "✕ غير قابل الآن"}
     </button>
   );
 }
