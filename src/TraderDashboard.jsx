@@ -453,6 +453,30 @@ function ImportPanel({ session, categories, onImported }) {
   );
 }
 
+function ReturnableToggle({ listing }) {
+  const [value, setValue] = useState(listing.returnable);
+  const [busy, setBusy] = useState(false);
+
+  const toggle = async () => {
+    setBusy(true);
+    const next = !value;
+    const { error } = await supabase.from("trader_listings").update({ returnable: next }).eq("id", listing.id);
+    setBusy(false);
+    if (!error) setValue(next);
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={busy}
+      className="text-[11px] font-medium px-2.5 py-1 rounded-full"
+      style={value ? { background: T.goodBg, color: T.good } : { background: T.badBg, color: T.bad }}
+    >
+      {value ? "قابل للإرجاع" : "غير قابل"}
+    </button>
+  );
+}
+
 function ListingsTable({ listings, loading }) {
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
   if (!listings.length) return <div className="text-sm p-6 text-center rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>لسه ما أضفت أي منتج.</div>;
@@ -467,6 +491,7 @@ function ListingsTable({ listings, loading }) {
             <th className="text-start font-medium px-4 py-3">الكمية</th>
             <th className="text-start font-medium px-4 py-3">سعر الجملة</th>
             <th className="text-start font-medium px-4 py-3">الحالة</th>
+            <th className="text-start font-medium px-4 py-3">قابل للإرجاع؟</th>
           </tr>
         </thead>
         <tbody>
@@ -487,6 +512,9 @@ function ListingsTable({ listings, loading }) {
                 >
                   {l.product_catalog?.status === "approved" ? "معتمد" : "قيد المراجعة"}
                 </span>
+              </td>
+              <td className="px-4 py-3">
+                <ReturnableToggle listing={l} />
               </td>
             </tr>
           ))}
@@ -898,6 +926,73 @@ function AdsPanel({ session }) {
   );
 }
 
+function ReturnPolicyPanel({ session }) {
+  const [generalPolicy, setGeneralPolicy] = useState("");
+  const [ownPolicy, setOwnPolicy] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("platform_settings").select("value").eq("key", "general_return_policy").single(),
+      supabase.from("profiles").select("return_policy_notes").eq("id", session.user.id).single(),
+    ]).then(([g, p]) => {
+      setGeneralPolicy(g.data?.value || "");
+      setOwnPolicy(p.data?.return_policy_notes || "");
+      setLoading(false);
+    });
+  }, [session]);
+
+  const save = async () => {
+    setSaving(true);
+    await supabase.from("profiles").update({ return_policy_notes: ownPolicy }).eq("id", session.user.id);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  if (loading) return <div className="text-sm text-center py-10" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl p-6" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+        <div className="text-sm font-semibold mb-2" style={{ color: T.ink }}>سياسة المنصة العامة (موحّدة لكل التجّار)</div>
+        <div className="text-xs leading-relaxed" style={{ color: T.sub }}>{generalPolicy}</div>
+      </div>
+
+      <div className="rounded-xl p-6" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+        <div className="text-sm font-semibold mb-1" style={{ color: T.ink }}>سياستك الخاصة (تُضاف فوق سياسة المنصة العامة)</div>
+        <div className="text-xs mb-3" style={{ color: T.sub }}>
+          وضّح هنا أي شروط إضافية خاصة بمتجرك — مثلاً هل تخصم رسوم توصيل الإرجاع من المبلغ المسترجع أو لا، أو أي استثناءات عامة.
+        </div>
+        <textarea
+          value={ownPolicy}
+          onChange={(e) => setOwnPolicy(e.target.value)}
+          rows={5}
+          placeholder="مثال: يُخصم رسم توصيل الإرجاع من المبلغ المسترجع للعميل. المنتجات الغذائية المفتوحة غير قابلة للإرجاع مطلقاً."
+          className="w-full text-sm rounded-lg py-2 px-3 outline-none"
+          style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+        />
+        <button
+          onClick={save}
+          disabled={saving}
+          className="text-xs font-medium px-4 py-2 rounded-lg mt-3"
+          style={{ background: saved ? T.good : T.ink, color: "#fff" }}
+        >
+          {saved ? "تم الحفظ ✓" : saving ? "..." : "حفظ سياستي"}
+        </button>
+      </div>
+
+      <div className="rounded-xl p-4" style={{ background: "#FBF1DD" }}>
+        <div className="text-xs" style={{ color: T.sealDeep }}>
+          💡 قابلية إرجاع كل منتج لحاله تتحكم فيها من جدول "منتجاتي" — عمود "قابل للإرجاع" بجانب كل صنف، وتقدر تغيّره أي وقت.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TraderDashboard() {
   useFonts();
   useIdleLogout(30);
@@ -1035,12 +1130,21 @@ export default function TraderDashboard() {
           >
             الإعلانات
           </button>
+          <button
+            onClick={() => setView("returns")}
+            className="flex-1 text-xs font-medium py-2.5 rounded-lg"
+            style={{ background: view === "returns" ? T.ink : "#fff", color: view === "returns" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+          >
+            سياسة الإرجاع
+          </button>
         </div>
 
         {view === "wallet" ? (
           <WalletPanel session={session} />
         ) : view === "ads" ? (
           <AdsPanel session={session} />
+        ) : view === "returns" ? (
+          <ReturnPolicyPanel session={session} />
         ) : (
         <>
         <div className="flex gap-2">
