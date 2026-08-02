@@ -922,12 +922,21 @@ export default function TraderDashboard() {
   const loadListings = useCallback(async () => {
     if (!session) return;
     setLoadingListings(true);
-    const { data } = await supabase
-      .from("trader_listings")
-      .select("*, product_catalog(name, category_id, status)")
-      .eq("trader_id", session.user.id)
-      .order("updated_at", { ascending: false });
-    setListings(data || []);
+    let all = [];
+    let from = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data } = await supabase
+        .from("trader_listings")
+        .select("*, product_catalog(name, category_id, status)")
+        .eq("trader_id", session.user.id)
+        .order("updated_at", { ascending: false })
+        .range(from, from + PAGE - 1);
+      all = all.concat(data || []);
+      if (!data || data.length < PAGE) break;
+      from += PAGE;
+    }
+    setListings(all);
     setLoadingListings(false);
   }, [session]);
 
