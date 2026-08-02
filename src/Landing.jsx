@@ -162,7 +162,11 @@ export default function Landing() {
     supabase.rpc("get_active_ads", { p_placement: "landing_page" }).then(({ data }) => {
       setAds(data || []);
       const displayedSlots = ["banner_large", "banner_square", "ticker"];
-      (data || []).filter((a) => displayedSlots.includes(a.slot_id)).forEach((a) => supabase.rpc("log_ad_view", { p_booking_id: a.id }));
+      (data || []).filter((a) => displayedSlots.includes(a.slot_id)).forEach((a) =>
+        supabase.rpc("log_ad_view", { p_booking_id: a.id }).then(({ error }) => {
+          if (error) console.error("log_ad_view error:", error);
+        })
+      );
     });
     const t = setTimeout(() => setShowPopup(true), 2500);
     return () => clearTimeout(t);
@@ -184,7 +188,7 @@ export default function Landing() {
     const measure = () => {
       if (tickerTrackRef.current) setTickerHalfWidth(tickerTrackRef.current.scrollWidth / 2);
     };
-    const t = setTimeout(measure, 200); // نعطي الصور فرصة تتحمّل قبل القياس
+    const t = setTimeout(measure, 50);
     return () => clearTimeout(t);
   }, [tickerAds.length]);
 
