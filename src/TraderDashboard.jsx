@@ -253,6 +253,7 @@ function ImportPanel({ session, categories, onImported }) {
   const [err, setErr] = useState("");
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
 
   const catByName = Object.fromEntries(categories.map((c) => [c.name_ar, c.id]));
 
@@ -277,58 +278,66 @@ function ImportPanel({ session, categories, onImported }) {
 
   const confirmImport = async () => {
     setImporting(true);
+    setProgress({ done: 0, total: rows.length });
     let matched = 0, created = 0, failed = 0;
+    const CHUNK = 400;
 
-    for (const row of rows) {
-      try {
-        let catalogId = null;
+    // 1. جمع كل الباركودات الموجودة بالملف (بدون فراغ)، ونجيب أي منتج
+    // مطابق موجود مسبقاً بالكتالوج المرجعي دفعة وحدة (بدل طلب لكل صف)
+    const barcodes = [...new Set(rows.filter((r) => r.barcode).map((r) => String(r.barcode).trim()))];
+    const existingByBarcode = {};
+    for (let i = 0; i < barcodes.length; i += CHUNK) {
+      const slice = barcodes.slice(i, i + CHUNK);
+      const { data } = await supabase.from("product_catalog").select("id, barcode").in("barcode", slice);
+      (data || []).forEach((d) => { existingByBarcode[d.barcode] = d.id; });
+    }
 
-        if (row.barcode) {
-          const { data: existing } = await supabase
-            .from("product_catalog")
-            .select("id")
-            .eq("barcode", String(row.barcode).trim())
-            .maybeSingle();
-          if (existing) catalogId = existing.id;
-        }
-
-        if (!catalogId) {
-          const { data: newCat, error: catErr } = await supabase
-            .from("product_catalog")
-            .insert({
-              barcode: row.barcode ? String(row.barcode).trim() : null,
-              name: String(row.name).trim(),
-              category_id: catByName[row.category_name] || "other",
-              brand: row.brand || null,
-              description: row.description || null,
-              created_by: session.user.id,
-            })
-            .select("id")
-            .single();
-          if (catErr) throw catErr;
-          catalogId = newCat.id;
-          created++;
-        } else {
-          matched++;
-        }
-
-        const { error: listErr } = await supabase.from("trader_listings").upsert(
-          {
-            trader_id: session.user.id,
-            catalog_id: catalogId,
-            sku: row.sku || null,
-            quantity: Number(row.quantity) || 0,
-            cost: row.cost ? Number(row.cost) : null,
-            wholesale_price: Number(row.wholesale_price) || 0,
-            retail_price: row.retail_price ? Number(row.retail_price) : null,
-            active: true,
-          },
-          { onConflict: "trader_id,catalog_id" }
-        );
-        if (listErr) throw listErr;
-      } catch {
-        failed++;
+    // 2. الصفوف اللي محتاجة صنف جديد بالكتالوج (باركود غير موجود، أو بدون باركود)
+    const needsNewCatalog = rows.filter((r) => !r.barcode || !existingByBarcode[String(r.barcode).trim()]);
+    const catalogIdByRowIndex = {};
+    for (let i = 0; i < needsNewCatalog.length; i += CHUNK) {
+      const slice = needsNewCatalog.slice(i, i + CHUNK);
+      const payload = slice.map((r) => ({
+        barcode: r.barcode ? String(r.barcode).trim() : null,
+        name: String(r.name).trim(),
+        category_id: catByName[r.category_name] || "other",
+        brand: r.brand || null,
+        description: r.description || null,
+        created_by: session.user.id,
+      }));
+      const { data, error } = await supabase.from("product_catalog").insert(payload).select("id");
+      if (!error && data) {
+        slice.forEach((r, idx) => { catalogIdByRowIndex[rows.indexOf(r)] = data[idx]?.id; });
+        created += data.length;
+      } else {
+        failed += slice.length;
       }
+      setProgress({ done: Math.min(i + CHUNK, needsNewCatalog.length), total: rows.length });
+    }
+
+    // 3. بناء قوائم التاجر دفعة وحدة، والحفظ على شكل دفعات كبيرة
+    const listingsPayload = [];
+    rows.forEach((r, idx) => {
+      const catalogId = (r.barcode && existingByBarcode[String(r.barcode).trim()]) || catalogIdByRowIndex[idx];
+      if (!catalogId) return;
+      if (r.barcode && existingByBarcode[String(r.barcode).trim()]) matched++;
+      listingsPayload.push({
+        trader_id: session.user.id,
+        catalog_id: catalogId,
+        sku: r.sku || null,
+        quantity: Number(r.quantity) || 0,
+        cost: r.cost ? Number(r.cost) : null,
+        wholesale_price: Number(r.wholesale_price) || 0,
+        retail_price: r.retail_price ? Number(r.retail_price) : null,
+        active: true,
+      });
+    });
+
+    for (let i = 0; i < listingsPayload.length; i += CHUNK) {
+      const slice = listingsPayload.slice(i, i + CHUNK);
+      const { error } = await supabase.from("trader_listings").upsert(slice, { onConflict: "trader_id,catalog_id" });
+      if (error) failed += slice.length;
+      setProgress({ done: rows.length, total: rows.length });
     }
 
     await supabase.from("product_import_batches").insert({
@@ -407,6 +416,19 @@ function ImportPanel({ session, categories, onImported }) {
               </tbody>
             </table>
           </div>
+          {importing && (
+            <div className="mb-2">
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: T.paper }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ background: T.seal, width: `${progress.total ? Math.round((progress.done / progress.total) * 100) : 0}%` }}
+                />
+              </div>
+              <div className="text-[11px] mt-1 text-center" style={{ color: T.sub }}>
+                {progress.done} / {progress.total} — قد يأخذ عدة دقائق لملفات كبيرة، لا تغلق الصفحة
+              </div>
+            </div>
+          )}
           <div className="flex gap-2">
             <button
               onClick={() => { setRows(null); setFileName(""); }}
