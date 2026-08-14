@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
-import { Package, Upload, Loader2, CheckCircle2, LogOut, FileSpreadsheet, AlertTriangle, Home, Store, Eye, Trash2 } from "lucide-react";
+import { Package, Upload, Loader2, CheckCircle2, LogOut, FileSpreadsheet, AlertTriangle, Home, Store, Eye, Trash2, Clock, Star } from "lucide-react";
 
 const T = {
   ink: "#14213B",
@@ -53,6 +53,9 @@ const COLUMN_MAP = {
   "سعر التجزئة": "retail_price",
   "الكود الداخلي (SKU)": "sku",
   "الوصف": "description",
+  "عدد وحدات البيع بالكرتون": "units_per_carton",
+  "اسم الوحدة الأساسية": "base_unit_name",
+  "اسم الوحدة الجزئية": "sub_unit_name",
 };
 
 function parseSheet(file) {
@@ -80,10 +83,36 @@ function parseSheet(file) {
   });
 }
 
+function UnitNameSelect({ value, onChange, options, placeholder }) {
+  const isCustom = value && !options.includes(value);
+  return (
+    <div className="flex gap-1.5">
+      <select
+        value={isCustom ? "__other__" : value}
+        onChange={(e) => onChange(e.target.value === "__other__" ? "" : e.target.value)}
+        className="flex-1 text-sm rounded-lg py-2 px-3 outline-none"
+        style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+      >
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+        <option value="__other__">أخرى (اكتب اسم مخصص)</option>
+      </select>
+      {isCustom && (
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1 text-sm rounded-lg py-2 px-3 outline-none"
+          style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+        />
+      )}
+    </div>
+  );
+}
+
 function ManualAddForm({ session, categories, onAdded }) {
   const [form, setForm] = useState({
     name: "", barcode: "", category_id: "other", unit: "كرتون",
-    quantity: "", cost: "", wholesale_price: "", retail_price: "", sku: "",
+    quantity: "", cost: "", wholesale_price: "", retail_price: "", sku: "", units_per_carton: "1", base_unit_name: "كرتون", sub_unit_name: "حبة",
   });
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -116,8 +145,18 @@ function ManualAddForm({ session, categories, onAdded }) {
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
-    if (!form.name.trim() || !form.wholesale_price) {
-      setErr("اسم المنتج وسعر الجملة حقلان إجباريان.");
+    const missing = [];
+    if (!form.name.trim()) missing.push("اسم المنتج");
+    if (!form.category_id) missing.push("الفئة");
+    if (!form.quantity || Number(form.quantity) <= 0) missing.push("الكمية");
+    if (!form.cost) missing.push("سعر التكلفة");
+    if (!form.wholesale_price) missing.push("سعر الجملة");
+    if (!form.retail_price) missing.push("سعر التجزئة");
+    if (!form.base_unit_name?.trim()) missing.push("اسم الوحدة الأساسية");
+    if (!form.sub_unit_name?.trim()) missing.push("اسم الوحدة الجزئية");
+    if (!form.units_per_carton || Number(form.units_per_carton) < 1) missing.push("عدد الوحدات الجزئية بالوحدة الأساسية");
+    if (missing.length > 0) {
+      setErr(`أكمل الحقول التالية أولاً: ${missing.join("، ")}. (الباركود وحده اختياري — بعض المنتجات ما له باركود أصلاً)`);
       return;
     }
     setLoading(true);
@@ -156,6 +195,9 @@ function ManualAddForm({ session, categories, onAdded }) {
           quantity: Number(form.quantity) || 0,
           cost: form.cost ? Number(form.cost) : null,
           wholesale_price: Number(form.wholesale_price),
+          units_per_carton: Number(form.units_per_carton) || 1,
+          base_unit_name: form.base_unit_name || "كرتون",
+          sub_unit_name: form.sub_unit_name || "حبة",
           retail_price: form.retail_price ? Number(form.retail_price) : null,
           active: true,
         },
@@ -164,7 +206,7 @@ function ManualAddForm({ session, categories, onAdded }) {
       if (listErr) throw listErr;
 
       setSuccess(true);
-      setForm({ name: "", barcode: "", category_id: "other", unit: "كرتون", quantity: "", cost: "", wholesale_price: "", retail_price: "", sku: "" });
+      setForm((f) => ({ name: "", barcode: "", category_id: "other", unit: "كرتون", quantity: "", cost: "", wholesale_price: "", retail_price: "", sku: "", units_per_carton: "1", base_unit_name: f.base_unit_name, sub_unit_name: f.sub_unit_name }));
       onAdded();
       setTimeout(() => setSuccess(false), 2500);
     } catch (e) {
@@ -194,7 +236,9 @@ function ManualAddForm({ session, categories, onAdded }) {
             </button>
           </div>
           {matched === false && (
-            <div className="text-[11px] mt-1" style={{ color: T.sealDeep }}>صنف جديد كلياً — سيُضاف للمراجعة.</div>
+            <div className="text-[11px] mt-1" style={{ color: T.sealDeep }}>
+              صنف جديد كلياً — سيُضاف للمراجعة. <strong>اكتب الاسم بالتفصيل الكامل الآن</strong> (الوزن، والتفكيك زي "1×10×24")، لأن كل تاجر ثاني يبيع نفس الباركود بعدين يرث نفس الاسم تلقائياً.
+            </div>
           )}
           {matched && (
             <div className="text-[11px] mt-1 flex items-center gap-1" style={{ color: T.good }}>
@@ -204,29 +248,87 @@ function ManualAddForm({ session, categories, onAdded }) {
         </div>
 
         <div>
-          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الفئة</label>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الفئة *</label>
           <select value={form.category_id} onChange={set("category_id")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name_ar}</option>)}
           </select>
         </div>
 
         <div>
-          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الكمية المتوفرة</label>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>الكمية المتوفرة *</label>
           <input type="number" value={form.quantity} onChange={set("quantity")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
         </div>
 
         <div>
-          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر الجملة *</label>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر الجملة (سعر ال{form.base_unit_name || "كرتون"}) *</label>
           <input type="number" step="0.01" value={form.wholesale_price} onChange={set("wholesale_price")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
         </div>
 
+        <div className="col-span-2 grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>اسم وحدة البيع الأساسية (الكبيرة) *</label>
+            <UnitNameSelect
+              value={form.base_unit_name}
+              onChange={(v) => setForm((f) => ({ ...f, base_unit_name: v }))}
+              options={["كرتون", "درزن", "بالة", "شوال", "صندوق"]}
+              placeholder="اكتب اسم الوحدة"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>اسم وحدة البيع الجزئية (اللي يطلبها العميل) *</label>
+            <UnitNameSelect
+              value={form.sub_unit_name}
+              onChange={(v) => setForm((f) => ({ ...f, sub_unit_name: v }))}
+              options={["حبة", "علبة", "زوج", "كيس", "شدة"]}
+              placeholder="اكتب اسم الوحدة"
+            />
+          </div>
+        </div>
+
         <div>
-          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر التكلفة (اختياري)</label>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>عدد {form.sub_unit_name || "وحدات البيع"} بال{form.base_unit_name || "كرتون"} *</label>
+          <div className="text-[10px] mb-1" style={{ color: T.sub }}>
+            مثال: {form.base_unit_name || "كرتون"} سنيكرز فيه 10 {form.sub_unit_name || "علبة"}، والعلبة مقفولة وما تُفتح ← اكتب 10.
+          </div>
+          <div className="flex gap-1.5">
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={form.units_per_carton}
+              onChange={set("units_per_carton")}
+              placeholder="اكتب العدد الكلي"
+              className="flex-1 text-sm rounded-lg py-2 px-3 outline-none"
+              style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+            />
+            {Number(form.units_per_carton) > 1 && (
+              <select
+                value={form.units_per_carton}
+                onChange={(e) => setForm((f) => ({ ...f, units_per_carton: e.target.value }))}
+                title="تعديل سريع: اختر عدد أقل لو غيّرت رأيك"
+                className="text-sm rounded-lg px-2 outline-none"
+                style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sealDeep }}
+              >
+                {Array.from({ length: Number(form.units_per_carton) }, (_, i) => Number(form.units_per_carton) - i).map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            )}
+          </div>
+          {form.wholesale_price && Number(form.units_per_carton) > 0 && (
+            <div className="text-[11px] mt-1" style={{ color: T.sealDeep }}>
+              سعر ال{form.sub_unit_name || "وحدة"} تلقائياً: {(Number(form.wholesale_price) / Number(form.units_per_carton)).toFixed(2)} ر.س
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر التكلفة *</label>
           <input type="number" step="0.01" value={form.cost} onChange={set("cost")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
         </div>
 
         <div>
-          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر التجزئة (اختياري)</label>
+          <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>سعر التجزئة *</label>
           <input type="number" step="0.01" value={form.retail_price} onChange={set("retail_price")} className="w-full text-sm rounded-lg py-2 px-3 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
         </div>
 
@@ -276,6 +378,8 @@ function ImportPanel({ session, categories, onImported }) {
     }
   };
 
+  const [importMode, setImportMode] = useState("replace"); // replace = استبدال كامل | add = إضافة للكمية الحالية بس
+
   const confirmImport = async () => {
     setImporting(true);
     setProgress({ done: 0, total: rows.length });
@@ -316,18 +420,35 @@ function ImportPanel({ session, categories, onImported }) {
     }
 
     // 3. بناء قوائم التاجر دفعة وحدة، والحفظ على شكل دفعات كبيرة
+    // لو وضع "إضافة للكمية الحالية"، نجيب الكميات الحالية لكل منتج
+    // عندك مسبقاً أول، عشان نضيف عليها بدل ما نستبدلها بالكامل
+    const existingQtyByCatalogId = {};
+    if (importMode === "add") {
+      const allCatalogIds = [...new Set(rows.map((r, idx) => (r.barcode && existingByBarcode[String(r.barcode).trim()]) || catalogIdByRowIndex[idx]).filter(Boolean))];
+      for (let i = 0; i < allCatalogIds.length; i += CHUNK) {
+        const slice = allCatalogIds.slice(i, i + CHUNK);
+        const { data } = await supabase.from("trader_listings").select("catalog_id, quantity").eq("trader_id", session.user.id).in("catalog_id", slice);
+        (data || []).forEach((d) => { existingQtyByCatalogId[d.catalog_id] = Number(d.quantity) || 0; });
+      }
+    }
+
     const listingsPayload = [];
     rows.forEach((r, idx) => {
       const catalogId = (r.barcode && existingByBarcode[String(r.barcode).trim()]) || catalogIdByRowIndex[idx];
       if (!catalogId) return;
       if (r.barcode && existingByBarcode[String(r.barcode).trim()]) matched++;
+      const importedQty = Number(r.quantity) || 0;
+      const finalQty = importMode === "add" ? (existingQtyByCatalogId[catalogId] || 0) + importedQty : importedQty;
       listingsPayload.push({
         trader_id: session.user.id,
         catalog_id: catalogId,
         sku: r.sku || null,
-        quantity: Number(r.quantity) || 0,
+        quantity: finalQty,
         cost: r.cost ? Number(r.cost) : null,
         wholesale_price: Number(r.wholesale_price) || 0,
+        units_per_carton: Number(r.units_per_carton) || 1,
+        base_unit_name: r.base_unit_name || "كرتون",
+        sub_unit_name: r.sub_unit_name || "حبة",
         retail_price: r.retail_price ? Number(r.retail_price) : null,
         active: true,
       });
@@ -416,6 +537,27 @@ function ImportPanel({ session, categories, onImported }) {
               </tbody>
             </table>
           </div>
+          {!importing && (
+            <div className="mb-3">
+              <label className="text-xs font-medium block mb-1.5" style={{ color: T.sub }}>عند تكرار منتج موجود مسبقاً بحسابك (نفس الباركود)</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setImportMode("replace")}
+                  className="flex-1 text-xs font-medium py-2 rounded-lg"
+                  style={{ background: importMode === "replace" ? T.ink : T.paper, color: importMode === "replace" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+                >
+                  استبدال كامل (سعر، كمية، كل الحقول)
+                </button>
+                <button
+                  onClick={() => setImportMode("add")}
+                  className="flex-1 text-xs font-medium py-2 rounded-lg"
+                  style={{ background: importMode === "add" ? T.ink : T.paper, color: importMode === "add" ? "#fff" : T.sub, border: `1px solid ${T.line}` }}
+                >
+                  إضافة للكمية الحالية (باقي الحقول تُستبدل)
+                </button>
+              </div>
+            </div>
+          )}
           {importing && (
             <div className="mb-2">
               <div className="h-2 rounded-full overflow-hidden" style={{ background: T.paper }}>
@@ -525,6 +667,58 @@ function ListingsTable({ listings, loading }) {
   );
 }
 
+function StarRatingMini({ value, onChange }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} type="button" onClick={() => onChange(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} style={{ lineHeight: 0 }}>
+          <Star size={18} fill={(hover || value) >= n ? T.seal : "none"} color={T.seal} strokeWidth={1.5} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RateCustomerButton({ orderId, customerId, customerLabel }) {
+  const [rated, setRated] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    supabase.from("ratings").select("id").eq("order_id", orderId).eq("rated_id", customerId).maybeSingle()
+      .then(({ data }) => setRated(!!data));
+  }, [orderId, customerId]);
+
+  const submit = async () => {
+    if (stars === 0) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("submit_rating", { p_order_id: orderId, p_rated_id: customerId, p_stars: stars, p_comment: comment.trim() || null });
+    setBusy(false);
+    if (!error) { setRated(true); setOpen(false); }
+  };
+
+  if (rated === null) return null;
+  if (rated) return <span className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: T.goodBg, color: T.good }}>✓ قيّمت العميل</span>;
+
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} className="text-[10px] font-medium px-2 py-1 rounded-full flex items-center gap-1" style={{ background: "#FBF1DD", color: T.sealDeep, border: "1px solid #E8D5A8" }}>
+        <Star size={10} /> قيّم العميل
+      </button>
+      {open && (
+        <div className="absolute z-10 mt-1 p-3 rounded-lg" style={{ background: "#fff", border: `1px solid ${T.line}`, width: 220, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+          <div className="mb-2"><StarRatingMini value={stars} onChange={setStars} /></div>
+          <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="تعليق (اختياري)" className="w-full text-xs rounded-lg py-1.5 px-2 mb-2 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+          <button onClick={submit} disabled={busy} className="w-full text-xs font-medium py-1.5 rounded-lg" style={{ background: T.ink, color: "#fff" }}>{busy ? "..." : "إرسال"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WalletPanel({ session }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -552,7 +746,7 @@ function WalletPanel({ session }) {
     if (!itemsCache[inv.id]) {
       const { data } = await supabase
         .from("order_items")
-        .select("product_name, quantity, unit_price, line_total")
+        .select("product_name, quantity, unit_price, line_total, unit_name, units_per_carton_snapshot, base_unit_name_snapshot")
         .eq("order_id", inv.order_id)
         .eq("trader_id", session.user.id);
       setItemsCache((c) => ({ ...c, [inv.id]: data || [] }));
@@ -596,9 +790,14 @@ function WalletPanel({ session }) {
                   <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>طلب #{inv.order_id?.slice(0, 8)}</span>
                   <span style={{ color: T.sub, fontWeight: 400, fontSize: 11 }}>{new Date(inv.created_at).toLocaleDateString("ar-SA")}</span>
                 </div>
-                <div className="text-[11px] mt-1" style={{ color: T.sub }}>
-                  هذه الفاتورة تخص منتجاتك فقط ضمن طلب من العميل {inv.orders?.profiles?.business_name || inv.orders?.profiles?.full_name || "—"}
+                <div className="text-[11px] mt-1 flex items-center gap-2" style={{ color: T.sub }}>
+                  <span>هذه الفاتورة تخص منتجاتك فقط ضمن طلب من العميل {inv.orders?.profiles?.business_name || inv.orders?.profiles?.full_name || "—"}</span>
                 </div>
+                {inv.orders?.customer_id && (
+                  <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                    <RateCustomerButton orderId={inv.order_id} customerId={inv.orders.customer_id} customerLabel={inv.orders?.profiles?.business_name || inv.orders?.profiles?.full_name} />
+                  </div>
+                )}
               </div>
               <div className="text-left shrink-0">
                 <div className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{inv.net_payable} ر.س</div>
@@ -618,7 +817,12 @@ function WalletPanel({ session }) {
                 </div>
                 {(itemsCache[inv.id] || []).map((item, i) => (
                   <div key={i} className="flex items-center justify-between text-xs py-1.5" style={{ borderTop: i ? `1px solid ${T.line}` : "none", color: T.ink }}>
-                    <span>{item.product_name} × {item.quantity}</span>
+                    <span>
+                      {item.product_name} × {item.quantity} {item.unit_name || "وحدة"}
+                      {item.units_per_carton_snapshot > 1 && item.quantity % item.units_per_carton_snapshot === 0 && (
+                        <span style={{ color: T.sub }}> (= {item.quantity / item.units_per_carton_snapshot} {item.base_unit_name_snapshot})</span>
+                      )}
+                    </span>
                     <span style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sub }}>{item.line_total} ر.س</span>
                   </div>
                 ))}
@@ -651,6 +855,14 @@ function AdsPanel({ session }) {
 
   const [viewCounts, setViewCounts] = useState({});
   const [deletingId, setDeletingId] = useState(null);
+  const [points, setPoints] = useState(0);
+  const [pointsInput, setPointsInput] = useState({});
+  const [pointsBusy, setPointsBusy] = useState(null);
+
+  const loadPoints = () => {
+    supabase.from("profiles").select("loyalty_points").eq("id", session.user.id).single()
+      .then(({ data }) => setPoints(data?.loyalty_points || 0));
+  };
 
   const load = () => {
     setLoading(true);
@@ -680,6 +892,20 @@ function AdsPanel({ session }) {
   };
 
   useEffect(load, [session]);
+  useEffect(loadPoints, [session]);
+
+  const applyPointsToBooking = async (bookingId) => {
+    const p = Number(pointsInput[bookingId]);
+    if (!p || p <= 0 || p > points) return;
+    setPointsBusy(bookingId);
+    const { error } = await supabase.rpc("apply_points_discount_to_ad", { p_booking_id: bookingId, p_points: p });
+    setPointsBusy(null);
+    if (!error) {
+      setPointsInput((s) => ({ ...s, [bookingId]: "" }));
+      loadPoints();
+      load();
+    }
+  };
 
   const slot = slots.find((s) => s.id === selectedSlot);
   const days = startDate && endDate ? Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)) : 0;
@@ -896,6 +1122,26 @@ function AdsPanel({ session }) {
                       <Eye size={11} /> {viewCounts[b.id] ?? 0} مشاهدة
                     </div>
                   )}
+                  {b.status === "pending_payment" && points > 0 && (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <input
+                        type="number"
+                        placeholder="عدد النقاط"
+                        value={pointsInput[b.id] || ""}
+                        onChange={(e) => setPointsInput((s) => ({ ...s, [b.id]: e.target.value }))}
+                        className="w-20 text-[11px] rounded-lg py-1 px-1.5 outline-none"
+                        style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+                      />
+                      <button
+                        onClick={() => applyPointsToBooking(b.id)}
+                        disabled={pointsBusy === b.id}
+                        className="text-[10px] font-medium px-2 py-1 rounded-lg"
+                        style={{ background: "#FBF1DD", color: T.sealDeep, border: "1px solid #E8D5A8" }}
+                      >
+                        {pointsBusy === b.id ? "..." : `خصم من نقاطي (${points})`}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span
@@ -1091,6 +1337,54 @@ function ReturnPolicyPanel({ session }) {
   );
 }
 
+function StoreLaunchBanner({ session, status, listingsCount, onUpdated }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  if (status === "launched") return null;
+
+  const request = async () => {
+    setErr("");
+    setBusy(true);
+    const { error } = await supabase.rpc("request_store_launch");
+    setBusy(false);
+    if (error) {
+      setErr(error.message || "تعذّر إرسال الطلب.");
+      return;
+    }
+    onUpdated();
+  };
+
+  if (status === "pending") {
+    return (
+      <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: "#FBF1DD", border: "1px solid #E8D5A8" }}>
+        <Clock size={18} style={{ color: T.sealDeep }} />
+        <div className="text-xs" style={{ color: T.sealDeep }}>
+          طلب انطلاق البيع قيد المراجعة من المشرف اللوجستي — بمجرد الاعتماد، متجرك يظهر للعملاء ويصير أي منتج تضيفه يُباع فوراً بدون انتظار.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl p-4" style={{ background: "#FBF1DD", border: "1px solid #E8D5A8" }}>
+      <div className="text-xs font-medium mb-1" style={{ color: T.ink }}>متجرك لسه ما ظهر للعملاء</div>
+      <div className="text-[11px] mb-3" style={{ color: T.sealDeep }}>
+        ارفع منتجاتك (يدوياً أو ملف Excel) أولاً، وبعدها اضغط الزر — مراجعة لمرة وحدة بس، وبعدها أي منتج جديد تضيفه يُباع فوراً بدون أي انتظار.
+      </div>
+      {err && <div className="text-xs mb-2" style={{ color: T.bad }}>{err}</div>}
+      <button
+        onClick={request}
+        disabled={busy || listingsCount === 0}
+        className="text-xs font-medium px-4 py-2 rounded-lg"
+        style={{ background: listingsCount === 0 ? T.paperDeep : T.ink, color: listingsCount === 0 ? T.sub : "#fff" }}
+      >
+        {busy ? "..." : listingsCount === 0 ? "أضف منتج واحد على الأقل أولاً" : "طلب انطلاق البيع"}
+      </button>
+    </div>
+  );
+}
+
 export default function TraderDashboard() {
   useFonts();
   useIdleLogout(30);
@@ -1150,7 +1444,7 @@ export default function TraderDashboard() {
     loadListings();
     supabase.from("product_categories").select("*").then(({ data }) => setCategories(data || []));
     if (session) {
-      supabase.from("profiles").select("store_name, full_name, store_category").eq("id", session.user.id).single()
+      supabase.from("profiles").select("store_name, full_name, store_category, store_launch_status").eq("id", session.user.id).single()
         .then(({ data }) => setProfile(data));
     }
   }, [loadListings, session]);
@@ -1206,6 +1500,15 @@ export default function TraderDashboard() {
             </div>
           </div>
         </div>
+        <StoreLaunchBanner
+          session={session}
+          status={profile?.store_launch_status || "not_ready"}
+          listingsCount={listings.length}
+          onUpdated={() => {
+            supabase.from("profiles").select("store_name, full_name, store_category, store_launch_status").eq("id", session.user.id).single()
+              .then(({ data }) => setProfile(data));
+          }}
+        />
         <div className="flex gap-2 mb-2">
           <button
             onClick={() => setView("products")}
