@@ -79,16 +79,16 @@ function StatsStrip({ stats }) {
       {STATS_META.map((s) => {
         const Icon = s.icon;
         return (
-          <div key={s.key} className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(184,134,43,0.3)" }}>
-            <Icon size={13} style={{ color: T.seal }} />
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#fff", fontWeight: 700 }}>{stats?.[s.key] ?? "—"}</span>
-            <span style={{ color: "#9C9787" }}>{s.label}</span>
+          <div key={s.key} className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+            <Icon size={13} style={{ color: T.sealDeep }} />
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink, fontWeight: 700 }}>{stats?.[s.key] ?? "—"}</span>
+            <span style={{ color: T.sub }}>{s.label}</span>
           </div>
         );
       })}
-      <div className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(184,134,43,0.3)" }}>
-        <Package size={13} style={{ color: T.seal }} />
-        <span style={{ color: "#9C9787" }}>منتج على المنصة: قريباً</span>
+      <div className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+        <Package size={13} style={{ color: T.sealDeep }} />
+        <span style={{ color: T.sub }}>منتج على المنصة: قريباً</span>
       </div>
     </div>
   );
@@ -253,34 +253,28 @@ export default function Landing() {
       )}
 
       {/* Hero */}
-      <section className="relative overflow-hidden" style={{ background: T.ink }}>
+      <section className="relative overflow-hidden">
         <div
           aria-hidden="true"
           className="absolute rounded-full pointer-events-none"
-          style={{
-            width: 620, height: 620, right: -180, top: -220,
-            border: `1px solid rgba(184,134,43,0.18)`,
-          }}
+          style={{ width: 520, height: 520, right: -160, top: -200, border: `1px solid ${T.line}` }}
         />
         <div
           aria-hidden="true"
           className="absolute rounded-full pointer-events-none"
-          style={{
-            width: 420, height: 420, right: -100, top: -140,
-            border: `1px solid rgba(184,134,43,0.14)`,
-          }}
+          style={{ width: 340, height: 340, right: -70, top: -110, border: `1px solid rgba(184,134,43,0.25)` }}
         />
         <div className="relative px-6 md:px-10 pt-16 pb-14 max-w-5xl mx-auto text-center">
           <div
             className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1.5 rounded-full mb-5"
-            style={{ background: "rgba(184,134,43,0.15)", color: T.seal, border: "1px solid rgba(184,134,43,0.35)" }}
+            style={{ background: "#FBF1DD", color: T.sealDeep, border: "1px solid #E8D5A8" }}
           >
             بوابة عبور تجّار الجملة إلى عملائهم
           </div>
-          <h1 className="text-3xl md:text-5xl font-extrabold leading-tight mb-5" style={{ color: "#fff" }}>
-            كل تجّار الجملة، <span style={{ color: T.seal }}>تحت سقف واحد</span>
+          <h1 className="text-3xl md:text-5xl font-extrabold leading-tight mb-5" style={{ color: T.ink }}>
+            كل تجّار الجملة، <span style={{ color: T.sealDeep }}>تحت سقف واحد</span>
           </h1>
-          <p className="text-sm md:text-base max-w-xl mx-auto mb-9" style={{ color: "#C9C4B4" }}>
+          <p className="text-sm md:text-base max-w-xl mx-auto mb-9" style={{ color: T.sub }}>
             تصفّح، اطلب، واستلم من أي تاجر جملة معتمد — بفاتورة واحدة وتجربة شراء موحّدة، بغض النظر عن عدد التجّار الذين تطلب منهم.
           </p>
           <button
@@ -293,8 +287,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Stats — شريط كحلي غامق يكمل الهيرو، أرقام بالذهبي */}
-      <section style={{ background: "#0F1A2E" }}>
+      {/* Stats — شريط فاتح خفيف، الذهبي هو المميّز */}
+      <section style={{ background: T.paperDeep, borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
         <div className="px-6 md:px-10 py-6 max-w-5xl mx-auto">
           <StatsStrip stats={stats} />
         </div>
