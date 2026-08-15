@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 const T = {
-  ink: "#14213B",
+  ink: "#1F4A52",
   paper: "#F6F3EC",
   paperDeep: "#EFE9DA",
   line: "#DCD5C4",
@@ -201,7 +201,7 @@ export default function Landing() {
           {/* عند توفر ملف الشعار، استبدل هذا الصندوق بـ <img src="/logo.png" className="w-10 h-10 rounded-full object-contain" /> */}
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: `radial-gradient(circle at 35% 30%, ${T.seal}, ${T.sealDeep})`, boxShadow: "0 0 0 3px rgba(184,134,43,0.18)" }}
+            style={{ background: "#fff" }}
           >
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
@@ -210,7 +210,7 @@ export default function Landing() {
         <a
           href="/login"
           className="text-xs font-semibold flex items-center gap-1.5 px-4 py-2 rounded-full transition-transform hover:-translate-y-0.5"
-          style={{ background: T.seal, color: T.ink, textDecoration: "none" }}
+          style={{ background: T.seal, color: "#fff", textDecoration: "none" }}
         >
           <LogIn size={13} /> تسجيل الدخول
         </a>
@@ -280,7 +280,7 @@ export default function Landing() {
           <button
             onClick={() => setShowRoles(true)}
             className="inline-flex items-center gap-1.5 text-sm font-bold px-6 py-3 rounded-lg transition-transform hover:-translate-y-0.5"
-            style={{ background: T.seal, color: T.ink, border: "none", cursor: "pointer" }}
+            style={{ background: T.seal, color: "#fff", border: "none", cursor: "pointer" }}
           >
             ابدأ من هنا <ArrowLeft size={14} />
           </button>
@@ -379,7 +379,7 @@ export default function Landing() {
         <div className="flex items-center justify-center gap-2 mb-2">
           <div
             className="w-6 h-6 rounded-full flex items-center justify-center"
-            style={{ background: `radial-gradient(circle at 35% 30%, ${T.seal}, ${T.sealDeep})` }}
+            style={{ background: "#fff" }}
           >
             <Package size={12} color={T.ink} strokeWidth={2.5} />
           </div>
