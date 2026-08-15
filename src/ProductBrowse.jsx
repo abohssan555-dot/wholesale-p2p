@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
 import {
   Package, Search, ShoppingCart, Plus, Minus, X, Loader2,
-  Store, LogOut, Home, CheckCircle2, AlertTriangle, Wallet,
+  Store, LogOut, Home, CheckCircle2, AlertTriangle, Wallet, Star,
 } from "lucide-react";
 
 const T = {
@@ -69,13 +69,15 @@ function ComparePricesModal({ catalogId, productName, currentTraderId, onClose, 
   useEffect(() => {
     supabase
       .from("trader_listings")
-      .select("id, quantity, wholesale_price, trader_id, catalog_id, product_catalog!inner(name, status), profiles!trader_id(store_name, city)")
+      .select("id, quantity, wholesale_price, units_per_carton, base_unit_name, sub_unit_name, trader_id, catalog_id, product_catalog!inner(name, status), profiles!trader_id!inner(store_name, city, store_launch_status, avg_rating, ratings_count)")
       .eq("catalog_id", catalogId)
       .eq("active", true)
-      .eq("product_catalog.status", "approved")
-      .order("wholesale_price", { ascending: true })
+      .eq("profiles.store_launch_status", "launched")
       .then(({ data }) => {
-        setOffers(data || []);
+        const sorted = (data || []).sort(
+          (a, b) => a.wholesale_price / (a.units_per_carton || 1) - b.wholesale_price / (b.units_per_carton || 1)
+        );
+        setOffers(sorted);
         setLoading(false);
       });
   }, [catalogId]);
@@ -100,9 +102,9 @@ function ComparePricesModal({ catalogId, productName, currentTraderId, onClose, 
                     <Store size={11} style={{ color: T.sealDeep }} /> {o.profiles?.store_name || "متجر غير مسمّى"}
                     {i === 0 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: T.good, color: "#fff" }}>الأرخص</span>}
                   </div>
-                  <div className="text-[10px]" style={{ color: T.sub }}>{o.profiles?.city || ""} · متوفر: {o.quantity}</div>
+                  <div className="text-[10px]" style={{ color: T.sub }}>{o.profiles?.city || ""} · متوفر: {o.quantity * (o.units_per_carton || 1)} {o.sub_unit_name || "وحدة"}</div>
                 </div>
-                <span className="text-sm font-semibold shrink-0" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{o.wholesale_price} ر.س</span>
+                <span className="text-sm font-semibold shrink-0" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{(o.wholesale_price / (o.units_per_carton || 1)).toFixed(2)} ر.س/{o.sub_unit_name || "وحدة"}</span>
                 <button
                   onClick={() => { onAdd(o, 1); onClose(); }}
                   disabled={o.quantity <= 0}
@@ -121,8 +123,21 @@ function ComparePricesModal({ catalogId, productName, currentTraderId, onClose, 
 }
 
 function ProductRow({ listing, onAdd, inCart }) {
-  const [qty, setQty] = useState(1);
+  const unitsPerCarton = listing.units_per_carton || 1;
+  const baseUnit = listing.base_unit_name || "كرتون";
+  const subUnit = listing.sub_unit_name || "وحدة";
+  const piecePrice = listing.wholesale_price / unitsPerCarton;
+  const availablePieces = listing.quantity * unitsPerCarton;
+  const hasCartons = unitsPerCarton > 1;
+  const [cartonMode, setCartonMode] = useState(true); // وضع الكرتون الكامل (افتراضي) مقابل وضع الكمية الجزئية
+  const [cartonCount, setCartonCount] = useState(1); // بوضع الكرتون: عدد الكراتين
+  const [partialQty, setPartialQty] = useState(1); // بوضع الجزئي: عدد الوحدة الجزئية المختارة من القائمة
+  const [qty, setQty] = useState(1); // يُستخدم فقط لو المنتج بدون كرتون أصلاً (unitsPerCarton = 1)
   const [showCompare, setShowCompare] = useState(false);
+
+  const maxCartons = listing.quantity; // كراتين متاحة
+  const finalQty = !hasCartons ? qty : cartonMode ? cartonCount * unitsPerCarton : partialQty;
+
   return (
     <>
     <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
@@ -133,41 +148,85 @@ function ProductRow({ listing, onAdd, inCart }) {
         <div className="text-sm font-semibold truncate" style={{ color: T.ink }}>{listing.product_catalog.name}</div>
         <div className="text-[11px] flex items-center gap-1 mt-0.5" style={{ color: T.sub }}>
           <Store size={11} /> {listing.profiles?.store_name || "متجر غير مسمّى"} · {listing.profiles?.city || ""}
+          {listing.profiles?.ratings_count > 0 && (
+            <span className="flex items-center gap-0.5" style={{ color: T.seal }}>
+              <Star size={10} fill={T.seal} /> {listing.profiles.avg_rating} ({listing.profiles.ratings_count})
+            </span>
+          )}
         </div>
+        {hasCartons && (
+          <div className="text-[10px] mt-0.5" style={{ color: T.sub }}>ال{baseUnit} = {unitsPerCarton} {subUnit} · سعر ال{baseUnit} {listing.wholesale_price} ر.س</div>
+        )}
         <button onClick={() => setShowCompare(true)} className="text-[10px] font-medium mt-1 underline" style={{ color: T.sealDeep }}>
           قارن مع تجّار آخرين
         </button>
       </div>
       <div className="text-left shrink-0">
         <div className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
-          {listing.wholesale_price} <span className="text-[11px] font-normal" style={{ color: T.sub }}>ر.س</span>
+          {piecePrice.toFixed(2)} <span className="text-[11px] font-normal" style={{ color: T.sub }}>ر.س/{subUnit}</span>
         </div>
-        <div className="text-[10px]" style={{ color: T.sub }}>متوفر: {listing.quantity}</div>
+        <div className="text-[10px]" style={{ color: T.sub }}>متوفر: {availablePieces} {subUnit}</div>
       </div>
 
-      {listing.quantity > 0 && (
+      {availablePieces > 0 && !hasCartons && (
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-6 h-6 rounded flex items-center justify-center" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
             <Minus size={11} />
           </button>
-          <span className="text-xs w-6 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{qty}</span>
-          <button onClick={() => setQty((q) => Math.min(listing.quantity, q + 1))} className="w-6 h-6 rounded flex items-center justify-center" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+          <input
+            type="number"
+            value={qty}
+            onChange={(e) => setQty(Math.max(1, Math.min(availablePieces, Number(e.target.value) || 1)))}
+            className="text-xs w-10 text-center rounded outline-none"
+            style={{ fontFamily: "'JetBrains Mono', monospace", background: T.paper, border: `1px solid ${T.line}` }}
+          />
+          <button onClick={() => setQty((q) => Math.min(availablePieces, q + 1))} className="w-6 h-6 rounded flex items-center justify-center" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
             <Plus size={11} />
           </button>
         </div>
       )}
 
+      {availablePieces > 0 && hasCartons && (
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {cartonMode ? (
+            <div className="flex items-center gap-1">
+              <button onClick={() => setCartonCount((c) => Math.max(1, c - 1))} className="w-6 h-6 rounded flex items-center justify-center" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+                <Minus size={11} />
+              </button>
+              <span className="text-xs w-14 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{cartonCount} {baseUnit}</span>
+              <button onClick={() => setCartonCount((c) => Math.min(maxCartons, c + 1))} className="w-6 h-6 rounded flex items-center justify-center" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+                <Plus size={11} />
+              </button>
+            </div>
+          ) : (
+            <select
+              value={partialQty}
+              onChange={(e) => setPartialQty(Number(e.target.value))}
+              className="text-xs rounded-lg py-1 px-2 outline-none"
+              style={{ fontFamily: "'JetBrains Mono', monospace", background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+            >
+              {Array.from({ length: unitsPerCarton - 1 }, (_, i) => unitsPerCarton - 1 - i).map((n) => (
+                <option key={n} value={n}>{n} {subUnit}</option>
+              ))}
+            </select>
+          )}
+          <button onClick={() => setCartonMode((m) => !m)} className="text-[10px] font-medium underline" style={{ color: T.sealDeep }}>
+            {cartonMode ? `أقل من ${baseUnit} واحد؟` : `الرجوع لـ${baseUnit} كامل`}
+          </button>
+        </div>
+      )}
+
       <button
-        onClick={() => onAdd(listing, qty)}
-        disabled={listing.quantity <= 0}
+        onClick={() => onAdd(listing, finalQty)}
+        disabled={availablePieces <= 0}
         className="shrink-0 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1"
         style={{
-          background: listing.quantity <= 0 ? T.paperDeep : inCart ? T.goodBg : T.ink,
-          color: listing.quantity <= 0 ? T.sub : inCart ? T.good : "#fff",
+          background: availablePieces <= 0 ? T.paperDeep : inCart ? T.goodBg : T.ink,
+          color: availablePieces <= 0 ? T.sub : inCart ? T.good : "#fff",
         }}
       >
         {inCart ? <CheckCircle2 size={13} /> : <Plus size={13} />}
-        {listing.quantity <= 0 ? "غير متوفر" : inCart ? "أُضيف" : "إضافة"}
+        {availablePieces <= 0 ? "غير متوفر" : inCart ? "أُضيف" : "إضافة"}
       </button>
     </div>
     {showCompare && (
@@ -416,6 +475,71 @@ const ORDER_STATUS_LABELS = {
   cancelled: "ملغى",
 };
 
+function StarRating({ value, onChange, readOnly }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          disabled={readOnly}
+          onClick={() => onChange && onChange(n)}
+          onMouseEnter={() => !readOnly && setHover(n)}
+          onMouseLeave={() => !readOnly && setHover(0)}
+          style={{ cursor: readOnly ? "default" : "pointer", lineHeight: 0 }}
+        >
+          <Star size={readOnly ? 12 : 22} fill={(hover || value) >= n ? T.seal : "none"} color={T.seal} strokeWidth={1.5} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RatingModal({ orderId, ratedId, ratedLabel, onClose, onDone }) {
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async () => {
+    if (stars === 0) {
+      setErr("اختر عدد النجوم أولاً.");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.rpc("submit_rating", { p_order_id: orderId, p_rated_id: ratedId, p_stars: stars, p_comment: comment.trim() || null });
+    setSubmitting(false);
+    if (error) {
+      setErr(error.message || "تعذّر إرسال التقييم.");
+      return;
+    }
+    onDone();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(20,33,59,0.55)" }} onClick={onClose}>
+      <div className="w-full max-w-xs rounded-xl p-5" style={{ background: "#fff" }} onClick={(e) => e.stopPropagation()}>
+        <div className="text-sm font-semibold mb-1" style={{ color: T.ink }}>تقييم {ratedLabel}</div>
+        <div className="text-[11px] mb-3" style={{ color: T.sub }}>تجربتك تساعد باقي المستخدمين</div>
+        <div className="flex justify-center mb-4"><StarRating value={stars} onChange={setStars} /></div>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={3}
+          placeholder="تعليق (اختياري)"
+          className="w-full text-sm rounded-lg py-2 px-3 mb-3 outline-none"
+          style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }}
+        />
+        {err && <div className="text-xs mb-2" style={{ color: T.bad }}>{err}</div>}
+        <button onClick={submit} disabled={submitting} className="w-full text-sm font-medium py-2.5 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
+          {submitting ? "..." : "إرسال التقييم"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ReturnRequestModal({ order, onClose, onDone }) {
   const [selected, setSelected] = useState({});
   const [reason, setReason] = useState("");
@@ -520,17 +644,36 @@ function MyOrdersTab({ session }) {
   const [loading, setLoading] = useState(true);
   const [returnOrder, setReturnOrder] = useState(null);
   const [returnSuccess, setReturnSuccess] = useState(false);
+  const [expandedOrder, setExpandedOrder] = useState(null);
+  const [ratingTarget, setRatingTarget] = useState(null); // { orderId, ratedId, label }
+  const [myRatings, setMyRatings] = useState({}); // key: `${orderId}-${ratedId}`
+  const [traderNames, setTraderNames] = useState({});
+
+  const loadRatings = async () => {
+    const { data } = await supabase.from("ratings").select("order_id, rated_id").eq("rater_id", session.user.id);
+    const map = {};
+    (data || []).forEach((r) => { map[`${r.order_id}-${r.rated_id}`] = true; });
+    setMyRatings(map);
+  };
 
   const load = () => {
     supabase
       .from("orders")
-      .select("*, delivery_pin, order_items(id, product_name, quantity, unit_price, trader_id)")
+      .select("*, delivery_pin, driver:profiles!driver_id(full_name), order_items(id, product_name, quantity, unit_price, trader_id, unit_name, units_per_carton_snapshot, base_unit_name_snapshot)")
       .eq("customer_id", session.user.id)
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         setOrders(data || []);
         setLoading(false);
+        const traderIds = [...new Set((data || []).flatMap((o) => (o.order_items || []).map((i) => i.trader_id)))];
+        if (traderIds.length) {
+          const { data: traders } = await supabase.from("profiles").select("id, store_name, full_name").in("id", traderIds);
+          const names = {};
+          (traders || []).forEach((t) => { names[t.id] = t.store_name || t.full_name; });
+          setTraderNames(names);
+        }
       });
+    loadRatings();
   };
 
   useEffect(load, [session]);
@@ -562,9 +705,28 @@ function MyOrdersTab({ session }) {
               {ORDER_STATUS_LABELS[o.status] || o.status}
             </span>
           </div>
-          <div className="text-[11px] mb-2" style={{ color: T.sub }}>
+          <button
+            onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)}
+            className="text-[11px] mb-2 underline"
+            style={{ color: T.sub }}
+          >
             {(o.order_items || []).length} صنف · {[...new Set((o.order_items || []).map((i) => i.trader_id))].length} تاجر
-          </div>
+          </button>
+          {expandedOrder === o.id && (
+            <div className="rounded-lg p-2.5 mb-2" style={{ background: T.paper }}>
+              {(o.order_items || []).map((item) => (
+                <div key={item.id} className="flex items-center justify-between text-[11px] py-1" style={{ color: T.ink }}>
+                  <span>
+                    {item.product_name} × {item.quantity} {item.unit_name || "وحدة"}
+                    {item.units_per_carton_snapshot > 1 && item.quantity % item.units_per_carton_snapshot === 0 && (
+                      <span style={{ color: T.sub }}> (= {item.quantity / item.units_per_carton_snapshot} {item.base_unit_name_snapshot})</span>
+                    )}
+                  </span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sub }}>{(item.quantity * item.unit_price).toFixed(2)} ر.س</span>
+                </div>
+              ))}
+            </div>
+          )}
           {o.status !== "delivered" && o.status !== "cancelled" && o.delivery_pin && (
             <div className="rounded-lg p-2.5 mb-2 flex items-center justify-between" style={{ background: "#FBF1DD" }}>
               <span className="text-[11px]" style={{ color: T.sealDeep }}>رمز التسليم — أعطه للسائق عند الاستلام</span>
@@ -575,6 +737,41 @@ function MyOrdersTab({ session }) {
             <span>المنتجات: {o.subtotal} ر.س</span>
             <span>التوصيل: {o.delivery_fee} ر.س</span>
           </div>
+          {o.status === "delivered" && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              {[...new Set((o.order_items || []).map((i) => i.trader_id))].map((tid) => (
+                myRatings[`${o.id}-${tid}`] ? (
+                  <span key={tid} className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: T.goodBg, color: T.good }}>
+                    ✓ قيّمت {traderNames[tid] || "التاجر"}
+                  </span>
+                ) : (
+                  <button
+                    key={tid}
+                    onClick={() => setRatingTarget({ orderId: o.id, ratedId: tid, label: traderNames[tid] || "التاجر" })}
+                    className="text-[10px] font-medium px-2 py-1 rounded-full flex items-center gap-1"
+                    style={{ background: "#FBF1DD", color: T.sealDeep, border: "1px solid #E8D5A8" }}
+                  >
+                    <Star size={10} /> قيّم {traderNames[tid] || "التاجر"}
+                  </button>
+                )
+              ))}
+              {o.driver_id && (
+                myRatings[`${o.id}-${o.driver_id}`] ? (
+                  <span className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: T.goodBg, color: T.good }}>
+                    ✓ قيّمت السائق
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setRatingTarget({ orderId: o.id, ratedId: o.driver_id, label: o.driver?.full_name || "السائق" })}
+                    className="text-[10px] font-medium px-2 py-1 rounded-full flex items-center gap-1"
+                    style={{ background: "#FBF1DD", color: T.sealDeep, border: "1px solid #E8D5A8" }}
+                  >
+                    <Star size={10} /> قيّم السائق
+                  </button>
+                )
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>
               الإجمالي: {o.total} ر.س
@@ -587,6 +784,16 @@ function MyOrdersTab({ session }) {
           </div>
         </div>
       ))}
+
+      {ratingTarget && (
+        <RatingModal
+          orderId={ratingTarget.orderId}
+          ratedId={ratingTarget.ratedId}
+          ratedLabel={ratingTarget.label}
+          onClose={() => setRatingTarget(null)}
+          onDone={() => { setRatingTarget(null); loadRatings(); }}
+        />
+      )}
 
       {returnOrder && (
         <ReturnRequestModal
@@ -604,7 +811,58 @@ function MyOrdersTab({ session }) {
   );
 }
 
-function CustomerWalletDrawer({ session, balance, onClose }) {
+function LoyaltyPointsCard({ points, onRedeemed }) {
+  const [redeemPoints, setRedeemPoints] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const redeem = async () => {
+    setErr("");
+    const p = Number(redeemPoints);
+    if (!p || p <= 0 || p > (points || 0)) {
+      setErr("أدخل عدد نقاط صحيح ومتوفر برصيدك.");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.rpc("redeem_points_to_wallet", { p_points: p });
+    setBusy(false);
+    if (error) {
+      setErr(error.message || "تعذّر التحويل.");
+      return;
+    }
+    setRedeemPoints("");
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 2500);
+    onRedeemed();
+  };
+
+  return (
+    <div className="rounded-xl p-4 mb-4" style={{ background: "#FBF1DD", border: "1px solid #E8D5A8" }}>
+      <div className="text-[11px]" style={{ color: T.sealDeep }}>نقاط الولاء</div>
+      <div className="text-2xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sealDeep }}>
+        {points || 0} <span className="text-xs font-normal">نقطة</span>
+      </div>
+      <div className="text-[10px] mt-1 mb-2" style={{ color: T.sealDeep }}>تكسب نقطة عن كل 10 ريال بمشترياتك — 10 نقاط = 1 ريال</div>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          value={redeemPoints}
+          onChange={(e) => setRedeemPoints(e.target.value)}
+          placeholder="عدد النقاط"
+          className="flex-1 text-xs rounded-lg py-1.5 px-2 outline-none"
+          style={{ background: "#fff", border: "1px solid #E8D5A8", color: T.ink }}
+        />
+        <button onClick={redeem} disabled={busy} className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
+          {busy ? "..." : success ? "تم ✓" : "تحويل لرصيد"}
+        </button>
+      </div>
+      {err && <div className="text-[11px] mt-1.5" style={{ color: T.bad }}>{err}</div>}
+    </div>
+  );
+}
+
+function CustomerWalletDrawer({ session, balance, points, onClose, onPointsChanged }) {
   const [orders, setOrders] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -658,6 +916,8 @@ function CustomerWalletDrawer({ session, balance, onClose }) {
               </div>
               <div className="text-[10px] mt-1" style={{ color: T.good }}>يُستخدم من مرتجعات أو تعويضات، يعتمده المدير أو المشرف المالي</div>
             </div>
+
+            <LoyaltyPointsCard points={points} onRedeemed={onPointsChanged} />
 
             <div className="rounded-xl p-4 mb-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
               <div className="text-[11px]" style={{ color: T.sub }}>إجمالي ما دفعته (طلبات مكتملة)</div>
@@ -747,6 +1007,8 @@ export default function ProductBrowse() {
   const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
+  const [traderFilter, setTraderFilter] = useState("");
+  const [traders, setTraders] = useState([]);
   const [cart, setCart] = useState(loadCart());
   const [showCart, setShowCart] = useState(false);
   const [tab, setTab] = useState("browse");
@@ -778,12 +1040,14 @@ export default function ProductBrowse() {
     });
   }, []);
 
-  useEffect(() => {
+  const reloadProfile = () => {
     if (session) {
-      supabase.from("profiles").select("full_name, business_name, city, wallet_balance, delivery_zone, distance_km").eq("id", session.user.id).single()
+      supabase.from("profiles").select("full_name, business_name, city, wallet_balance, delivery_zone, distance_km, loyalty_points").eq("id", session.user.id).single()
         .then(({ data }) => setProfile(data));
     }
-  }, [session]);
+  };
+
+  useEffect(reloadProfile, [session]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -794,17 +1058,28 @@ export default function ProductBrowse() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    supabase
+      .from("profiles")
+      .select("id, store_name, city, user_roles!inner(role_id)")
+      .eq("store_launch_status", "launched")
+      .eq("user_roles.role_id", "trader")
+      .order("store_name", { ascending: true })
+      .then(({ data }) => setTraders(data || []));
+  }, []);
+
   const fetchPage = useCallback(async (pageNum, reset) => {
     setLoading(true);
     let query = supabase
       .from("trader_listings")
-      .select("id, quantity, wholesale_price, trader_id, catalog_id, product_catalog!inner(name, category_id, status, shipping_size), profiles!trader_id(store_name, city)")
+      .select("id, quantity, wholesale_price, units_per_carton, base_unit_name, sub_unit_name, trader_id, catalog_id, product_catalog!inner(name, category_id, status, shipping_size), profiles!trader_id!inner(store_name, city, store_launch_status, avg_rating, ratings_count)")
       .eq("active", true)
-      .eq("product_catalog.status", "approved")
+      .eq("profiles.store_launch_status", "launched")
       .order("id", { ascending: true })
       .range(pageNum * PAGE_SIZE, pageNum * PAGE_SIZE + PAGE_SIZE - 1);
 
     if (category) query = query.eq("product_catalog.category_id", category);
+    if (traderFilter) query = query.eq("trader_id", traderFilter);
     if (search.trim()) query = query.ilike("product_catalog.name", `%${search.trim()}%`);
 
     const { data, error } = await query;
@@ -813,12 +1088,12 @@ export default function ProductBrowse() {
       setHasMore((data || []).length === PAGE_SIZE);
     }
     setLoading(false);
-  }, [category, search]);
+  }, [category, search, traderFilter]);
 
   useEffect(() => {
     setPage(0);
     fetchPage(0, true);
-  }, [category, search, fetchPage]);
+  }, [category, search, traderFilter, fetchPage]);
 
   const addToCart = (listing, chosenQty = 1) => {
     const key = `${listing.trader_id}-${listing.catalog_id}`;
@@ -835,7 +1110,7 @@ export default function ProductBrowse() {
           trader_id: listing.trader_id,
           product_name: listing.product_catalog.name,
           store_name: listing.profiles?.store_name || "متجر غير مسمّى",
-          wholesale_price: listing.wholesale_price,
+          wholesale_price: listing.wholesale_price / (listing.units_per_carton || 1),
           quantity: chosenQty,
           shipping_size: listing.product_catalog?.shipping_size || "medium",
         },
@@ -950,6 +1225,17 @@ export default function ProductBrowse() {
               <option key={c.id} value={c.id}>{c.label}</option>
             ))}
           </select>
+          <select
+            value={traderFilter}
+            onChange={(e) => setTraderFilter(e.target.value)}
+            className="text-sm rounded-lg px-3 outline-none"
+            style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}
+          >
+            <option value="">كل التجّار</option>
+            {traders.map((t) => (
+              <option key={t.id} value={t.id}>{t.store_name || "متجر غير مسمّى"} — {t.city}</option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -982,7 +1268,7 @@ export default function ProductBrowse() {
       </div>
 
       {showCart && <CartDrawer cart={cart} setCart={setCart} onClose={() => setShowCart(false)} session={session.user} city={profile?.city} zone={profile?.delivery_zone} distanceKm={profile?.distance_km} />}
-      {showWallet && <CustomerWalletDrawer session={session} balance={profile?.wallet_balance} onClose={() => setShowWallet(false)} />}
+      {showWallet && <CustomerWalletDrawer session={session} balance={profile?.wallet_balance} points={profile?.loyalty_points} onClose={() => setShowWallet(false)} onPointsChanged={reloadProfile} />}
     </div>
   );
 }

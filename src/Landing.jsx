@@ -75,20 +75,20 @@ const STATS_META = [
 
 function StatsStrip({ stats }) {
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2">
+    <div className="flex flex-wrap items-center justify-center gap-3">
       {STATS_META.map((s) => {
         const Icon = s.icon;
         return (
-          <div key={s.key} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}>
-            <Icon size={13} style={{ color: T.sealDeep }} />
-            <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{stats?.[s.key] ?? "—"}</span>
-            <span style={{ color: T.sub }}>{s.label}</span>
+          <div key={s.key} className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(184,134,43,0.3)" }}>
+            <Icon size={13} style={{ color: T.seal }} />
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#fff", fontWeight: 700 }}>{stats?.[s.key] ?? "—"}</span>
+            <span style={{ color: "#9C9787" }}>{s.label}</span>
           </div>
         );
       })}
-      <div className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.ink }}>
-        <Package size={13} style={{ color: T.sealDeep }} />
-        <span style={{ color: T.sub }}>منتج على المنصة: قريباً</span>
+      <div className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(184,134,43,0.3)" }}>
+        <Package size={13} style={{ color: T.seal }} />
+        <span style={{ color: "#9C9787" }}>منتج على المنصة: قريباً</span>
       </div>
     </div>
   );
@@ -137,7 +137,7 @@ function PopupBanner({ onClose }) {
       <div className="flex-1">
         <div className="text-xs font-semibold mb-1">مساحتك الإعلانية هنا</div>
         <div className="text-[11px]" style={{ color: "#B9B4A2" }}>
-          تجّار المنصة يقدرون يحجزون بانر زي هذا من لوحة التحكم الخاصة فيهم.
+          بإمكان تجّار المنصة حجز بانر كهذا من لوحة التحكم الخاصة بهم.
         </div>
       </div>
       <button onClick={onClose} className="shrink-0">
@@ -196,13 +196,16 @@ export default function Landing() {
   return (
     <div dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", background: T.paper, minHeight: "100vh" }}>
       {/* Header */}
-      <header className="px-6 md:px-10 py-4 flex items-center justify-between sticky top-0 z-40" style={{ background: T.ink }}>
-        <div className="flex items-center gap-2">
-          {/* عند توفر ملف الشعار، استبدل هذا الصندوق بـ <img src="/logo.png" className="w-9 h-9 rounded-md object-contain" /> */}
-          <div className="w-9 h-9 rounded-md flex items-center justify-center rotate-3" style={{ background: T.seal }}>
+      <header className="px-6 md:px-10 py-4 flex items-center justify-between sticky top-0 z-40" style={{ background: T.ink, borderBottom: `1px solid rgba(184,134,43,0.25)` }}>
+        <div className="flex items-center gap-2.5">
+          {/* عند توفر ملف الشعار، استبدل هذا الصندوق بـ <img src="/logo.png" className="w-10 h-10 rounded-full object-contain" /> */}
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: `radial-gradient(circle at 35% 30%, ${T.seal}, ${T.sealDeep})`, boxShadow: "0 0 0 3px rgba(184,134,43,0.18)" }}
+          >
             <Package size={18} color={T.ink} strokeWidth={2.5} />
           </div>
-          <span className="font-semibold text-[15px]" style={{ color: "#fff" }}>أصناف الجملة</span>
+          <span className="font-bold text-[16px] tracking-wide" style={{ color: "#fff" }}>أصناف الجملة</span>
         </div>
         <a
           href="/login"
@@ -250,29 +253,51 @@ export default function Landing() {
       )}
 
       {/* Hero */}
-      <section className="px-6 md:px-10 pt-14 pb-10 max-w-5xl mx-auto text-center">
+      <section className="relative overflow-hidden" style={{ background: T.ink }}>
         <div
-          className="inline-block text-[11px] font-medium px-3 py-1 rounded-full mb-4"
-          style={{ background: "#FBF1DD", color: T.sealDeep }}
-        >
-          بوابة عبور تجّار الجملة إلى عملائهم
+          aria-hidden="true"
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: 620, height: 620, right: -180, top: -220,
+            border: `1px solid rgba(184,134,43,0.18)`,
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: 420, height: 420, right: -100, top: -140,
+            border: `1px solid rgba(184,134,43,0.14)`,
+          }}
+        />
+        <div className="relative px-6 md:px-10 pt-16 pb-14 max-w-5xl mx-auto text-center">
+          <div
+            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1.5 rounded-full mb-5"
+            style={{ background: "rgba(184,134,43,0.15)", color: T.seal, border: "1px solid rgba(184,134,43,0.35)" }}
+          >
+            بوابة عبور تجّار الجملة إلى عملائهم
+          </div>
+          <h1 className="text-3xl md:text-5xl font-extrabold leading-tight mb-5" style={{ color: "#fff" }}>
+            كل تجّار الجملة، <span style={{ color: T.seal }}>تحت سقف واحد</span>
+          </h1>
+          <p className="text-sm md:text-base max-w-xl mx-auto mb-9" style={{ color: "#C9C4B4" }}>
+            تصفّح، اطلب، واستلم من أي تاجر جملة معتمد — بفاتورة واحدة وتجربة شراء موحّدة، بغض النظر عن عدد التجّار الذين تطلب منهم.
+          </p>
+          <button
+            onClick={() => setShowRoles(true)}
+            className="inline-flex items-center gap-1.5 text-sm font-bold px-6 py-3 rounded-lg transition-transform hover:-translate-y-0.5"
+            style={{ background: T.seal, color: T.ink, border: "none", cursor: "pointer" }}
+          >
+            ابدأ من هنا <ArrowLeft size={14} />
+          </button>
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-4" style={{ color: T.ink }}>
-          كل تجّار الجملة، تحت سقف واحد
-        </h1>
-        <p className="text-sm md:text-base max-w-xl mx-auto mb-8" style={{ color: T.sub }}>
-          تصفّح، اطلب، واستلم من أي تاجر جملة معتمد — بفاتورة واحدة وتجربة شراء موحّدة، بغض النظر عن عدد التجّار الذين تطلب منهم.
-        </p>
-        <button onClick={() => setShowRoles(true)} className="inline-flex items-center gap-1 text-sm font-medium px-5 py-2.5 rounded-lg" style={{ background: T.ink, color: "#fff", border: "none", cursor: "pointer" }}>
-          ابدأ من هنا <ArrowLeft size={14} />
-        </button>
       </section>
 
-      {/* Stats */}
-      
-
-      <section className="px-6 md:px-10 pb-10 max-w-5xl mx-auto">
-        <StatsStrip stats={stats} />
+      {/* Stats — شريط كحلي غامق يكمل الهيرو، أرقام بالذهبي */}
+      <section style={{ background: "#0F1A2E" }}>
+        <div className="px-6 md:px-10 py-6 max-w-5xl mx-auto">
+          <StatsStrip stats={stats} />
+        </div>
       </section>
 
       {/* الإعلانات — المساحة الرئيسية المستغلة من دمج قسم الأدوار */}
@@ -335,23 +360,38 @@ export default function Landing() {
           </div>
         </div>
 
-        <div className="rounded-xl p-5" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
-          <div className="flex items-center gap-2 mb-4">
+        <div className="rounded-xl p-5 flex flex-col items-center" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+          <div className="flex items-center gap-2 mb-4 self-start">
             <Star size={16} style={{ color: T.sealDeep }} />
             <span className="text-sm font-semibold" style={{ color: T.ink }}>تقييم المنصة</span>
           </div>
-          <div className="text-center py-2">
-            <div className="text-3xl font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>—</div>
-            <div className="flex justify-center gap-0.5 my-2">
-              {[1, 2, 3, 4, 5].map((i) => <Star key={i} size={14} style={{ color: T.line }} />)}
-            </div>
-            <div className="text-[11px]" style={{ color: T.sub }}>لسه ما فيه تقييمات — يبدأ يتفعّل بعد أول طلبات فعلية</div>
+          <div
+            className="w-24 h-24 rounded-full flex flex-col items-center justify-center mb-3"
+            style={{
+              background: `radial-gradient(circle at 35% 30%, ${T.seal}, ${T.sealDeep})`,
+              boxShadow: "0 0 0 4px #FBF1DD, 0 4px 14px rgba(140,96,24,0.25)",
+            }}
+          >
+            <div className="text-xl font-extrabold" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#fff" }}>—</div>
           </div>
+          <div className="flex justify-center gap-0.5 mb-2">
+            {[1, 2, 3, 4, 5].map((i) => <Star key={i} size={13} style={{ color: T.line }} />)}
+          </div>
+          <div className="text-[11px] text-center" style={{ color: T.sub }}>لا توجد تقييمات بعد — تظهر بعد أول طلبات فعلية</div>
         </div>
       </section>
 
-      <footer className="px-6 md:px-10 py-6 text-center text-[11px]" style={{ color: T.sub, borderTop: `1px solid ${T.line}` }}>
-        أصناف الجملة © 2026
+      <footer className="px-6 md:px-10 py-8 text-center" style={{ background: T.ink }}>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center"
+            style={{ background: `radial-gradient(circle at 35% 30%, ${T.seal}, ${T.sealDeep})` }}
+          >
+            <Package size={12} color={T.ink} strokeWidth={2.5} />
+          </div>
+          <span className="text-xs font-semibold" style={{ color: "#fff" }}>أصناف الجملة</span>
+        </div>
+        <div className="text-[11px]" style={{ color: "#8B8676" }}>© 2026 — جميع الحقوق محفوظة</div>
       </footer>
 
       {showPopup && <PopupBanner onClose={() => setShowPopup(false)} />}

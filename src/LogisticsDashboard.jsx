@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
-import { Package, LogOut, Loader2, ShieldCheck, AlertTriangle, Image as ImageIcon, Truck } from "lucide-react";
+import { Package, LogOut, Loader2, ShieldCheck, AlertTriangle, Image as ImageIcon, Truck, Store } from "lucide-react";
 
 const T = {
   ink: "#14213B",
@@ -29,6 +29,69 @@ function useFonts() {
 }
 
 const STAGE_LABELS = { pending: "قيد المراجعة", docs_review: "مراجعة المستندات", approved: "معتمد", rejected: "مرفوض" };
+
+function StoreLaunchRequests() {
+  const [requests, setRequests] = useState([]);
+  const [counts, setCounts] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    supabase
+      .from("profiles")
+      .select("id, full_name, store_name, city")
+      .eq("store_launch_status", "pending")
+      .then(async ({ data }) => {
+        setRequests(data || []);
+        setLoading(false);
+        const c = {};
+        for (const t of data || []) {
+          const { count } = await supabase.from("trader_listings").select("id", { count: "exact", head: true }).eq("trader_id", t.id);
+          c[t.id] = count || 0;
+        }
+        setCounts(c);
+      });
+  };
+
+  useEffect(load, []);
+
+  const approve = async (traderId) => {
+    setBusyId(traderId);
+    await supabase.rpc("approve_store_launch", { p_trader_id: traderId });
+    setBusyId(null);
+    load();
+  };
+
+  if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
+  if (requests.length === 0) return null;
+
+  return (
+    <div className="rounded-xl p-4 mb-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+      <div className="text-sm font-semibold mb-3 flex items-center gap-1.5" style={{ color: T.ink }}>
+        <Store size={15} style={{ color: T.sealDeep }} /> طلبات انطلاق بيع جديدة ({requests.length})
+      </div>
+      <div className="flex flex-col gap-2">
+        {requests.map((t) => (
+          <div key={t.id} className="rounded-lg p-3 flex items-center justify-between" style={{ background: T.paper, border: `1px solid ${T.line}` }}>
+            <div>
+              <div className="text-xs font-medium" style={{ color: T.ink }}>{t.store_name || t.full_name}</div>
+              <div className="text-[11px]" style={{ color: T.sub }}>{t.city || "—"} · {counts[t.id] ?? "..."} منتج مرفوع</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <a href="/trader/dashboard" target="_blank" rel="noreferrer" className="text-[11px] font-medium underline" style={{ color: T.sealDeep }}>
+                معاينة (سجّل دخول التاجر لو احتجت)
+              </a>
+              <button onClick={() => approve(t.id)} disabled={busyId === t.id} className="text-[11px] font-medium px-3 py-1.5 rounded-lg" style={{ background: T.good, color: "#fff" }}>
+                {busyId === t.id ? "..." : "اعتماد الانطلاق"}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Approvals() {
   const [requests, setRequests] = useState([]);
@@ -325,7 +388,12 @@ export default function LogisticsDashboard() {
           ))}
         </div>
 
-        {tab === "approvals" && <Approvals />}
+        {tab === "approvals" && (
+          <>
+            <StoreLaunchRequests />
+            <Approvals />
+          </>
+        )}
         {tab === "issues" && <DeliveryIssues />}
         {tab === "ads" && <AdReviews />}
       </div>

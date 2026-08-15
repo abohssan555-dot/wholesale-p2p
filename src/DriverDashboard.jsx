@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient.js";
 import { useIdleLogout } from "./useIdleLogout.js";
 import {
   Package, Truck, LogOut, Home, Loader2, MapPin, Store, Wallet,
-  CheckCircle2, Clock, Navigation, AlertTriangle,
+  CheckCircle2, Clock, Navigation, AlertTriangle, Star,
 } from "lucide-react";
 
 const T = {
@@ -180,21 +180,104 @@ function OrderCard({ order, mode, onClaim, onAdvance, onConfirmPin, onReportIssu
   );
 }
 
+function StarRatingMini({ value, onChange }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} type="button" onClick={() => onChange(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} style={{ lineHeight: 0 }}>
+          <Star size={18} fill={(hover || value) >= n ? T.seal : "none"} color={T.seal} strokeWidth={1.5} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RateCustomerButton({ orderId, customerId }) {
+  const [rated, setRated] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    supabase.from("ratings").select("id").eq("order_id", orderId).eq("rated_id", customerId).maybeSingle()
+      .then(({ data }) => setRated(!!data));
+  }, [orderId, customerId]);
+
+  const submit = async () => {
+    if (stars === 0) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("submit_rating", { p_order_id: orderId, p_rated_id: customerId, p_stars: stars, p_comment: comment.trim() || null });
+    setBusy(false);
+    if (!error) { setRated(true); setOpen(false); }
+  };
+
+  if (!customerId || rated === null) return null;
+  if (rated) return <span className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: T.goodBg, color: T.good }}>✓ قيّمت العميل</span>;
+
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} className="text-[10px] font-medium px-2 py-1 rounded-full flex items-center gap-1" style={{ background: "#FBF1DD", color: T.sealDeep, border: "1px solid #E8D5A8" }}>
+        <Star size={10} /> قيّم العميل
+      </button>
+      {open && (
+        <div className="absolute z-10 mt-1 p-3 rounded-lg" style={{ background: "#fff", border: `1px solid ${T.line}`, width: 220, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+          <div className="mb-2"><StarRatingMini value={stars} onChange={setStars} /></div>
+          <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="تعليق (اختياري)" className="w-full text-xs rounded-lg py-1.5 px-2 mb-2 outline-none" style={{ background: T.paper, border: `1px solid ${T.line}`, color: T.ink }} />
+          <button onClick={submit} disabled={busy} className="w-full text-xs font-medium py-1.5 rounded-lg" style={{ background: T.ink, color: "#fff" }}>{busy ? "..." : "إرسال"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DriverWalletPanel({ session }) {
   const [earnings, setEarnings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [points, setPoints] = useState(0);
+  const [redeemPoints, setRedeemPoints] = useState("");
+  const [redeemBusy, setRedeemBusy] = useState(false);
+  const [redeemErr, setRedeemErr] = useState("");
+  const [redeemSuccess, setRedeemSuccess] = useState(false);
+
+  const loadPoints = () => {
+    supabase.from("profiles").select("loyalty_points").eq("id", session.user.id).single()
+      .then(({ data }) => setPoints(data?.loyalty_points || 0));
+  };
 
   useEffect(() => {
     supabase
       .from("driver_earnings")
-      .select("*")
+      .select("*, orders(customer_id, profiles!customer_id(business_name, full_name))")
       .eq("driver_id", session.user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         setEarnings(data || []);
         setLoading(false);
       });
+    loadPoints();
   }, [session]);
+
+  const redeem = async () => {
+    setRedeemErr("");
+    const p = Number(redeemPoints);
+    if (!p || p <= 0 || p > points) {
+      setRedeemErr("أدخل عدد نقاط صحيح ومتوفر برصيدك.");
+      return;
+    }
+    setRedeemBusy(true);
+    const { error } = await supabase.rpc("redeem_points_to_wallet", { p_points: p });
+    setRedeemBusy(false);
+    if (error) {
+      setRedeemErr(error.message || "تعذّر التحويل.");
+      return;
+    }
+    setRedeemPoints("");
+    setRedeemSuccess(true);
+    setTimeout(() => setRedeemSuccess(false), 2500);
+    loadPoints();
+  };
 
   if (loading) return <div className="text-sm text-center py-10" style={{ color: T.sub }}>جارٍ التحميل...</div>;
 
@@ -220,6 +303,28 @@ function DriverWalletPanel({ session }) {
         </div>
       </div>
 
+      <div className="rounded-xl p-4" style={{ background: "#FBF1DD", border: "1px solid #E8D5A8" }}>
+        <div className="text-[11px]" style={{ color: T.sealDeep }}>نقاط الولاء</div>
+        <div className="text-2xl font-semibold mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.sealDeep }}>
+          {points} <span className="text-xs font-normal">نقطة</span>
+        </div>
+        <div className="text-[10px] mt-1 mb-2" style={{ color: T.sealDeep }}>تكسب نقطة عن كل 10 ريال رسوم توصيل — 10 نقاط = 1 ريال</div>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            value={redeemPoints}
+            onChange={(e) => setRedeemPoints(e.target.value)}
+            placeholder="عدد النقاط"
+            className="flex-1 text-xs rounded-lg py-1.5 px-2 outline-none"
+            style={{ background: "#fff", border: "1px solid #E8D5A8", color: T.ink }}
+          />
+          <button onClick={redeem} disabled={redeemBusy} className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
+            {redeemBusy ? "..." : redeemSuccess ? "تم ✓" : "تحويل لرصيد"}
+          </button>
+        </div>
+        {redeemErr && <div className="text-[11px] mt-1.5" style={{ color: T.bad }}>{redeemErr}</div>}
+      </div>
+
       <div className="flex flex-col gap-2">
         {earnings.length === 0 ? (
           <div className="text-sm text-center py-10 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>
@@ -238,6 +343,11 @@ function DriverWalletPanel({ session }) {
               <div className="text-[10px] mt-1" style={{ color: T.sub }}>
                 رسوم التوصيل: {e.delivery_fee} ر.س − عمولة المنصة (10%) = {e.driver_payable} ر.س
               </div>
+              {e.orders?.customer_id && (
+                <div className="mt-1.5">
+                  <RateCustomerButton orderId={e.order_id} customerId={e.orders.customer_id} />
+                </div>
+              )}
             </div>
             <div className="text-left shrink-0">
               <div className="text-sm font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: T.ink }}>{e.driver_payable} ر.س</div>
@@ -268,6 +378,8 @@ export default function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [err, setErr] = useState("");
+  const [availableReturns, setAvailableReturns] = useState([]);
+  const [myReturns, setMyReturns] = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -293,6 +405,27 @@ export default function DriverDashboard() {
 
   const ORDER_COLS = "id, status, delivery_city, delivery_address, subtotal, delivery_speed, requested_vehicle_type, delivery_issue_note, driver_id, created_at, order_items(trader_id)";
 
+  const RETURN_COLS = "id, status, reason, refund_amount, return_delivery_fee, driver_id, created_at, orders(delivery_city, delivery_address), customer:profiles!customer_id(full_name, business_name, phone), trader:profiles!trader_id(store_name, city)";
+
+  const loadReturns = useCallback(async () => {
+    if (!session) return;
+    const { data: avail } = await supabase
+      .from("return_requests")
+      .select(RETURN_COLS)
+      .is("driver_id", null)
+      .eq("status", "approved")
+      .order("decided_at", { ascending: true });
+    setAvailableReturns(avail || []);
+
+    const { data: mineData } = await supabase
+      .from("return_requests")
+      .select(RETURN_COLS)
+      .eq("driver_id", session.user.id)
+      .in("status", ["approved", "picked_up"])
+      .order("decided_at", { ascending: false });
+    setMyReturns(mineData || []);
+  }, [session]);
+
   const loadOrders = useCallback(async () => {
     if (!session) return;
     setLoading(true);
@@ -314,8 +447,8 @@ export default function DriverDashboard() {
   }, [session]);
 
   useEffect(() => {
-    if (authorized) loadOrders();
-  }, [authorized, loadOrders]);
+    if (authorized) { loadOrders(); loadReturns(); }
+  }, [authorized, loadOrders, loadReturns]);
 
   const claim = async (orderId) => {
     setErr("");
@@ -371,6 +504,32 @@ export default function DriverDashboard() {
     setBusyId(null);
     setErr("تم تصعيد المشكلة للمشرف اللوجستي.");
     loadOrders();
+  };
+
+  const claimReturn = async (returnId) => {
+    setErr("");
+    setBusyId(returnId);
+    const { error } = await supabase
+      .from("return_requests")
+      .update({ driver_id: session.user.id })
+      .eq("id", returnId)
+      .is("driver_id", null)
+      .eq("status", "approved");
+    setBusyId(null);
+    if (error) setErr("تعذّر استلام هذا المرتجع — يُحتمل أن سائقاً آخر استلمه قبلك.");
+    loadReturns();
+  };
+
+  const advanceReturn = async (returnId, nextStatus) => {
+    setBusyId(returnId);
+    const { error } = await supabase
+      .from("return_requests")
+      .update({ status: nextStatus })
+      .eq("id", returnId)
+      .eq("driver_id", session.user.id);
+    setBusyId(null);
+    if (error) setErr("تعذّر تحديث حالة المرتجع.");
+    loadReturns();
   };
 
   if (checking || (session && authorized === null)) {
@@ -440,17 +599,63 @@ export default function DriverDashboard() {
           >
             <Wallet size={13} /> المحفظة
           </button>
+          <button
+            onClick={() => setTab("returns")}
+            className="flex-1 text-xs font-medium py-2.5 rounded-lg flex items-center justify-center gap-1.5"
+            style={{ background: tab === "returns" ? T.seal : "#FBF1DD", color: tab === "returns" ? T.ink : T.sealDeep, border: "1px solid #E8D5A8" }}
+          >
+            <Package size={13} /> المرتجعات {availableReturns.length > 0 && `(${availableReturns.length})`}
+          </button>
         </div>
 
         {tab === "wallet" && <DriverWalletPanel session={session} />}
 
-        {err && tab !== "wallet" && (
+        {err && tab !== "wallet" && tab !== "returns" && (
           <div className="flex items-center gap-2 text-xs mb-3 p-3 rounded-lg" style={{ background: T.badBg, color: T.bad }}>
             <AlertTriangle size={13} /> {err}
           </div>
         )}
 
-        {tab !== "wallet" && (loading ? (
+        {tab === "returns" && (
+          <div className="flex flex-col gap-3">
+            <div className="text-xs font-medium" style={{ color: T.sub }}>مرتجعات بانتظار الاستلام</div>
+            {availableReturns.length === 0 ? (
+              <div className="text-xs text-center py-8 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>لا توجد مرتجعات متاحة حالياً.</div>
+            ) : availableReturns.map((r) => (
+              <div key={r.id} className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+                <div className="text-xs font-medium mb-1" style={{ color: T.ink }}>استلام من: {r.customer?.business_name || r.customer?.full_name}</div>
+                <div className="text-[11px] mb-1" style={{ color: T.sub }}>{r.orders?.delivery_city} — {r.orders?.delivery_address}</div>
+                <div className="text-[11px] mb-2" style={{ color: T.sub }}>تسليم إلى: {r.trader?.store_name}</div>
+                <button onClick={() => claimReturn(r.id)} disabled={busyId === r.id} className="text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5" style={{ background: T.ink, color: "#fff" }}>
+                  {busyId === r.id ? <Loader2 size={13} className="animate-spin" /> : <Truck size={13} />} استلام هذا المرتجع
+                </button>
+              </div>
+            ))}
+
+            <div className="text-xs font-medium mt-2" style={{ color: T.sub }}>مرتجعاتي الحالية</div>
+            {myReturns.length === 0 ? (
+              <div className="text-xs text-center py-8 rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>ما عندك مرتجعات شغّالة حالياً.</div>
+            ) : myReturns.map((r) => (
+              <div key={r.id} className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+                <div className="text-xs font-medium mb-1" style={{ color: T.ink }}>من: {r.customer?.business_name || r.customer?.full_name}</div>
+                <div className="text-[11px] mb-2" style={{ color: T.sub }}>
+                  {r.status === "approved" ? "بالطريق للاستلام من العميل" : "بالطريق لتسليم التاجر"}
+                </div>
+                {r.status === "approved" ? (
+                  <button onClick={() => advanceReturn(r.id, "picked_up")} disabled={busyId === r.id} className="text-xs font-medium px-3 py-2 rounded-lg" style={{ background: T.ink, color: "#fff" }}>
+                    تم الاستلام من العميل
+                  </button>
+                ) : (
+                  <button onClick={() => advanceReturn(r.id, "completed")} disabled={busyId === r.id} className="text-xs font-medium px-3 py-2 rounded-lg" style={{ background: T.good, color: "#fff" }}>
+                    تم التسليم للتاجر
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab !== "wallet" && tab !== "returns" && (loading ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={18} style={{ color: T.sealDeep }} /></div>
         ) : (
           <div className="flex flex-col gap-3">

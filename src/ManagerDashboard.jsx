@@ -199,8 +199,45 @@ function Overview({ pendingCount }) {
         })}
       </div>
       <div className="text-xs rounded-lg p-4" style={{ background: T.paperDeep, color: T.sub }}>
-        باقي المؤشرات (المبيعات، الطلبات، العمولة) هتشتغل فعلياً لما نبني جداول المنتجات والطلبات في الخطوة الجاية.
+        باقي المؤشرات (المبيعات، الطلبات، العمولة) ستعمل فعلياً عند بناء جداول المنتجات والطلبات في الخطوة القادمة.
       </div>
+      <TemplateUploadPanel />
+    </div>
+  );
+}
+
+function TemplateUploadPanel() {
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const upload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setErr("");
+    setUploading(true);
+    const { error } = await supabase.storage.from("templates").upload("product_template.xlsx", file, { upsert: true });
+    setUploading(false);
+    if (error) {
+      setErr(error.message || "تعذّر رفع الملف — تأكد من إنشاء Bucket باسم templates أولاً.");
+      return;
+    }
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 3000);
+  };
+
+  return (
+    <div className="rounded-xl p-4" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
+      <div className="text-sm font-semibold mb-1" style={{ color: T.ink }}>قالب استيراد المنتجات</div>
+      <div className="text-[11px] mb-3" style={{ color: T.sub }}>
+        الملف اللي يظهر للتاجر يحمّله من لوحته وقت استيراد منتجاته. ارفع نسخة جديدة هنا وقت ما تحتاج تحدّثه، وتستبدل القديم تلقائياً بنفس الرابط.
+      </div>
+      <label className="inline-flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-lg cursor-pointer" style={{ background: T.ink, color: "#fff" }}>
+        {uploading ? "جارٍ الرفع..." : "رفع نسخة جديدة من القالب"}
+        <input type="file" accept=".xlsx" className="hidden" onChange={upload} disabled={uploading} />
+      </label>
+      {success && <div className="text-[11px] mt-2" style={{ color: T.good }}>تم رفع القالب بنجاح ✓</div>}
+      {err && <div className="text-[11px] mt-2" style={{ color: T.bad }}>{err}</div>}
     </div>
   );
 }

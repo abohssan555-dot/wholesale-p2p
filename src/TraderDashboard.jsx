@@ -237,7 +237,7 @@ function ManualAddForm({ session, categories, onAdded }) {
           </div>
           {matched === false && (
             <div className="text-[11px] mt-1" style={{ color: T.sealDeep }}>
-              صنف جديد كلياً — سيُضاف للمراجعة. <strong>اكتب الاسم بالتفصيل الكامل الآن</strong> (الوزن، والتفكيك زي "1×10×24")، لأن كل تاجر ثاني يبيع نفس الباركود بعدين يرث نفس الاسم تلقائياً.
+              صنف جديد كلياً — سيُضاف للمراجعة. <strong>اكتب الاسم بالتفصيل الكامل الآن</strong> (الوزن، والتفكيك مثل "1×10×24")، لأن كل تاجر آخر يبيع نفس الباركود يرث لاحقاً نفس الاسم تلقائياً.
             </div>
           )}
           {matched && (
@@ -275,7 +275,7 @@ function ManualAddForm({ session, categories, onAdded }) {
             />
           </div>
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>اسم وحدة البيع الجزئية (اللي يطلبها العميل) *</label>
+            <label className="text-xs font-medium block mb-1" style={{ color: T.sub }}>اسم وحدة البيع الجزئية (التي يطلبها العميل) *</label>
             <UnitNameSelect
               value={form.sub_unit_name}
               onChange={(v) => setForm((f) => ({ ...f, sub_unit_name: v }))}
@@ -493,7 +493,18 @@ function ImportPanel({ session, categories, onImported }) {
         <FileSpreadsheet size={16} style={{ color: T.sealDeep }} />
         <span className="text-sm font-semibold" style={{ color: T.ink }}>استيراد منتجات من ملف Excel</span>
       </div>
-      <div className="text-xs mb-4" style={{ color: T.sub }}>استخدم قالب المنصة الرسمي فقط.</div>
+      <div className="text-xs mb-4" style={{ color: T.sub }}>
+        استخدم قالب المنصة الرسمي فقط —{" "}
+        <a
+          href="https://euiuybhgdzcrdrfjjrut.supabase.co/storage/v1/object/public/templates/product_template.xlsx"
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold underline"
+          style={{ color: T.sealDeep }}
+        >
+          اضغط هنا لتحميل القالب
+        </a>
+      </div>
 
       {!rows && (
         <label
@@ -622,7 +633,7 @@ function ReturnableToggle({ listing }) {
 
 function ListingsTable({ listings, loading }) {
   if (loading) return <div className="text-sm" style={{ color: T.sub }}>جارٍ التحميل...</div>;
-  if (!listings.length) return <div className="text-sm p-6 text-center rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>لسه ما أضفت أي منتج.</div>;
+  if (!listings.length) return <div className="text-sm p-6 text-center rounded-xl" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.sub }}>لم تُضِف أي منتج بعد.</div>;
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${T.line}` }}>
@@ -1368,7 +1379,7 @@ function StoreLaunchBanner({ session, status, listingsCount, onUpdated }) {
 
   return (
     <div className="rounded-xl p-4" style={{ background: "#FBF1DD", border: "1px solid #E8D5A8" }}>
-      <div className="text-xs font-medium mb-1" style={{ color: T.ink }}>متجرك لسه ما ظهر للعملاء</div>
+      <div className="text-xs font-medium mb-1" style={{ color: T.ink }}>متجرك لم يظهر للعملاء بعد</div>
       <div className="text-[11px] mb-3" style={{ color: T.sealDeep }}>
         ارفع منتجاتك (يدوياً أو ملف Excel) أولاً، وبعدها اضغط الزر — مراجعة لمرة وحدة بس، وبعدها أي منتج جديد تضيفه يُباع فوراً بدون أي انتظار.
       </div>
